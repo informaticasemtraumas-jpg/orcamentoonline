@@ -17,14 +17,28 @@ window.onload = () => {
     const configSalva = localStorage.getItem('configAtelie');
     if (configSalva) {
         const config = JSON.parse(configSalva);
+        
+        // Se o nome salvo for o antigo, vamos forçar a atualização para o novo
+        if (config.atelieNome === "Ateliê Pro Maceió" || !config.atelieNome) {
+            config.atelieNome = "Ateliê Viva Arte";
+            config.atelieFone = "(82) 98163-1996";
+            config.atelieExtra = "@atelievivarte";
+            localStorage.setItem('configAtelie', JSON.stringify(config));
+        }
+
         document.getElementById('salario').value = config.salario;
         document.getElementById('horas-mes').value = config.horasMes;
         document.getElementById('base-fixo').value = config.baseFixo;
         document.getElementById('base-margem').value = config.baseMargem;
         document.getElementById('base-preparo').value = config.basePreparo;
-        document.getElementById('atelie-nome').value = config.atelieNome || "Ateliê Viva Arte";
-        document.getElementById('atelie-fone').value = config.atelieFone || "";
-        document.getElementById('atelie-extra').value = config.atelieExtra || "";
+        document.getElementById('atelie-nome').value = config.atelieNome;
+        document.getElementById('atelie-fone').value = config.atelieFone;
+        document.getElementById('atelie-extra').value = config.atelieExtra;
+    } else {
+        // Se não houver nada salvo, define os padrões
+        document.getElementById('atelie-nome').value = "Ateliê Viva Arte";
+        document.getElementById('atelie-fone').value = "(82) 98163-1996";
+        document.getElementById('atelie-extra').value = "@atelievivarte";
     }
     recalcularValorHora();
 };
