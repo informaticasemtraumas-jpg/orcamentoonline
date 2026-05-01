@@ -22,7 +22,7 @@ window.onload = () => {
         document.getElementById('base-fixo').value = config.baseFixo;
         document.getElementById('base-margem').value = config.baseMargem;
         document.getElementById('base-preparo').value = config.basePreparo;
-        document.getElementById('atelie-nome').value = config.atelieNome || "Ateliê Pro Maceió";
+        document.getElementById('atelie-nome').value = config.atelieNome || "Ateliê Viva Arte";
         document.getElementById('atelie-fone').value = config.atelieFone || "";
         document.getElementById('atelie-extra').value = config.atelieExtra || "";
     }
@@ -183,7 +183,7 @@ function enviarWhatsApp() {
         return;
     }
 
-    let mensagem = `*ORÇAMENTO - ATELIÊ PRO MACEIÓ*\n`;
+    let mensagem = `*ORÇAMENTO - ATELIÊ VIVA ARTE*\n`;
     mensagem += `Olá, ${cliente}! Segue o resumo do seu orçamento:\n\n`;
 
     itensOrcamento.forEach((item, index) => {
@@ -213,7 +213,7 @@ function gerarPDF() {
     }
 
     // 1. Preenche Cabeçalho Dinâmico
-    const nomeAtelie = document.getElementById('atelie-nome').value || "Ateliê Pro Maceió";
+    const nomeAtelie = document.getElementById('atelie-nome').value || "Ateliê Viva Arte";
     const foneAtelie = document.getElementById('atelie-fone').value || "";
     const extraAtelie = document.getElementById('atelie-extra').value || "";
 
