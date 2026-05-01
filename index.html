@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Orçamentos - Ateliê Pro Maceió</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-2xl mx-auto space-y-6">
+        
+        <!-- Painel de Configuração Inicial (Mão de Obra e Insumos) -->
+        <div id="painel-config" class="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden transition-all">
+            <button onclick="toggleConfig()" class="w-full p-4 flex justify-between items-center bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                <span class="flex items-center gap-2 font-bold text-indigo-900 uppercase text-xs tracking-wider">
+                    <i data-lucide="calculator" class="w-4 h-4"></i> 
+                    Setup Inicial (Engenharia de Processos)
+                </span>
+                <span class="flex items-center gap-2 text-indigo-600 text-sm font-semibold">
+                    <span id="label-hora-atual">R$ 8,13/hora</span>
+                    <i data-lucide="chevron-down" id="config-icon" class="w-4 h-4 transition-transform"></i>
+                </span>
+            </button>
+            <div id="config-content" class="p-6 border-t border-indigo-100 space-y-6 config-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2 border-b pb-2">
+                            <i data-lucide="user" class="w-4 h-4"></i> Mão de Obra (Maceió)
+                        </h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs text-slate-500">Salário Almejado</label>
+                                <input type="number" id="salario" value="1626" oninput="recalcularValorHora()" class="w-24 p-1 text-right border rounded font-mono text-sm">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs text-slate-500">Horas Úteis/Mês</label>
+                                <input type="number" id="horas-mes" value="200" oninput="recalcularValorHora()" class="w-24 p-1 text-right border rounded font-mono text-sm">
+                            </div>
+                            <div class="flex justify-between items-center pt-2 border-t">
+                                <span class="text-sm font-bold text-indigo-600">Valor da Hora Real</span>
+                                <span class="font-mono font-bold" id="res-hora-base">R$ 8,13</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2 border-b pb-2">
+                            <i data-lucide="package" class="w-4 h-4"></i> Insumos e Margem
+                        </h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs text-slate-500">Embalagem/Tags (R$)</label>
+                                <input type="number" id="base-fixo" value="1.49" step="0.01" oninput="calcularTotal()" class="w-24 p-1 text-right border rounded font-mono text-sm">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs text-slate-500">Margem de Lucro %</label>
+                                <input type="number" id="base-margem" value="25" oninput="calcularTotal()" class="w-24 p-1 text-right border rounded font-mono text-sm">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="text-xs text-slate-500">Tempo de Mesa (Min)</label>
+                                <input type="number" id="base-preparo" value="15" oninput="calcularTotal()" class="w-24 p-1 text-right border rounded font-mono text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nova Seção: Dados do Ateliê para o PDF -->
+                <div class="space-y-4 pt-4 border-t border-indigo-100 mt-6">
+                    <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2 border-b pb-2">
+                        <i data-lucide="layout-template" class="w-4 h-4"></i> Dados do Cabeçalho (Para o PDF)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">Nome do Ateliê</label>
+                            <input type="text" id="atelie-nome" placeholder="Ex: Ateliê da Maria" value="Ateliê Pro Maceió" class="w-full p-2 border rounded text-sm bg-slate-50 focus:bg-white outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">WhatsApp Comercial</label>
+                            <input type="text" id="atelie-fone" placeholder="(82) 90000-0000" class="w-full p-2 border rounded text-sm bg-slate-50 focus:bg-white outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">Instagram / Endereço</label>
+                            <input type="text" id="atelie-extra" placeholder="Ex: @meuatelie | Centro" class="w-full p-2 border rounded text-sm bg-slate-50 focus:bg-white outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interface de Vendas -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+            <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Orçamento de Balcão</h1>
+                    <p class="text-indigo-100 opacity-90">Tabela de Preços Maceió</p>
+                </div>
+                <i data-lucide="scissors" class="w-8 h-8 opacity-50"></i>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Cliente -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="cliente" placeholder="Nome do Cliente" class="p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+                    <input type="text" id="whatsapp" placeholder="WhatsApp do Cliente" class="p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+                </div>
+
+                <!-- Adição de Peças (O "Carrinho") -->
+                <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
+                    <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i> Adicionar Peça ao Orçamento
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <select id="servico" class="w-full p-3 border rounded-xl bg-white cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="">-- Escolha o ajuste --</option>
+                            <optgroup label="Barras">
+                                <option value="barra_jeans" data-tempo="25" data-materiais="1.0">Barra de Calça Jeans</option>
+                                <option value="barra_social" data-tempo="35" data-materiais="1.5">Barra de Calça Social</option>
+                                <option value="barra_original" data-tempo="50" data-materiais="2.0">Barra Original</option>
+                            </optgroup>
+                            <optgroup label="Zíperes">
+                                <option value="ziper_jeans" data-tempo="40" data-materiais="8.0">Troca de Zíper Jeans</option>
+                                <option value="ziper_invisivel" data-tempo="55" data-materiais="12.0">Troca de Zíper Invisível</option>
+                            </optgroup>
+                            <optgroup label="Ajustes de Corpo">
+                                <option value="ajuste_cintura" data-tempo="60" data-materiais="2.0">Ajuste de Cintura Calça</option>
+                                <option value="ajuste_lateral_c" data-tempo="45" data-materiais="1.0">Ajuste Lateral Calça</option>
+                                <option value="ajuste_lateral_m" data-tempo="55" data-materiais="1.0">Ajuste Lateral Camisa</option>
+                                <option value="encurtar_manga" data-tempo="45" data-materiais="1.5">Encurtar Manga Camisa</option>
+                            </optgroup>
+                        </select>
+
+                        <div class="flex flex-wrap gap-3 items-center">
+                            <span class="text-sm font-semibold text-slate-600">Complexidade:</span>
+                            <div class="flex gap-2 flex-1">
+                                <button onclick="setComplex(1.0, this)" class="complex-btn flex-1 py-2 rounded-lg border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-medium text-sm transition-all">Padrão</button>
+                                <button onclick="setComplex(1.5, this)" class="complex-btn flex-1 py-2 rounded-lg border-2 border-slate-200 bg-white text-slate-600 font-medium text-sm transition-all">Difícil</button>
+                                <button onclick="setComplex(2.0, this)" class="complex-btn flex-1 py-2 rounded-lg border-2 border-slate-200 bg-white text-slate-600 font-medium text-sm transition-all">Luxo</button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <label class="flex-1 flex items-center gap-2 p-3 bg-white border rounded-xl cursor-pointer hover:bg-orange-50 transition-colors">
+                                <input type="checkbox" id="urgencia" onchange="calcularTotal()" class="w-4 h-4 accent-orange-600">
+                                <span class="text-sm font-bold text-orange-700 uppercase tracking-tight">Taxa de Urgência (+30%)</span>
+                            </label>
+                            <button onclick="adicionarPeca()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200">
+                                <i data-lucide="plus" class="w-5 h-5"></i> Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Peças Adicionadas -->
+                <div id="lista-pecas" class="space-y-3">
+                    <!-- Itens entram aqui via JS -->
+                </div>
+
+                <!-- Resumo Financeiro -->
+                <div class="pt-6 border-t-2 border-dashed border-slate-200 space-y-4">
+                    <div class="flex justify-between items-center text-slate-500">
+                        <span>Subtotal das Peças</span>
+                        <span class="font-mono" id="res-subtotal">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500">Desconto Especial (R$)</span>
+                            <input type="number" id="desconto" value="0" oninput="calcularTotal()" class="w-20 p-1 border rounded text-right font-mono text-sm">
+                        </div>
+                        <span class="font-mono text-red-500" id="res-desconto">- R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-indigo-50 rounded-2xl">
+                        <span class="text-indigo-900 font-bold">TOTAL DO ORÇAMENTO</span>
+                        <span class="text-2xl font-black text-indigo-600 font-mono" id="res-total">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Ações Finais -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="gerarPDF()" class="p-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">
+                        <i data-lucide="file-text" class="w-5 h-5"></i> Gerar PDF
+                    </button>
+                    <button onclick="enviarWhatsApp()" class="p-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">
+                        <i data-lucide="message-circle" class="w-5 h-5"></i> Enviar WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-slate-400 text-xs">
+            Sistema de Engenharia de Custos v2.0 • Ateliê Pro Maceió
+        </p>
+    </div>
+
+    <!-- Modal do PDF (Invisível na tela, visível na impressão) -->
+    <div id="modal-pdf" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-[21cm] min-h-[29.7cm] p-12 shadow-2xl relative print-area">
+            
+            <!-- Botões de Ação do Modal (Não saem no PDF) -->
+            <div class="absolute top-4 right-4 flex gap-2 no-print">
+                <button onclick="imprimirPDF()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / Salvar
+                </button>
+                <button onclick="fecharModalPDF()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold">
+                    Fechar
+                </button>
+            </div>
+
+            <!-- Conteúdo do PDF -->
+            <div class="space-y-8">
+                <!-- Cabeçalho -->
+                <div class="flex justify-between items-start border-b-2 border-slate-900 pb-6">
+                    <div>
+                        <h2 id="pdf-header-nome" class="text-3xl font-black uppercase tracking-tighter">ATELIÊ PRO MACEIÓ</h2>
+                        <p id="pdf-header-contato" class="text-slate-600 font-medium">WhatsApp: (82) 90000-0000 | @ateliepromaceio</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Orçamento Nº</p>
+                        <p class="font-mono font-bold">#<span id="pdf-numero">2024001</span></p>
+                        <p class="text-xs font-bold text-slate-400 uppercase mt-2">Data</p>
+                        <p class="font-mono" id="pdf-data">01/01/2024</p>
+                    </div>
+                </div>
+
+                <!-- Dados do Cliente -->
+                <div class="grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded-lg">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Cliente</p>
+                        <p id="pdf-cliente-nome" class="font-bold text-lg">-</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Contato</p>
+                        <p id="pdf-cliente-fone" class="font-mono">-</p>
+                    </div>
+                </div>
+
+                <!-- Tabela de Itens -->
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b-2 border-slate-900 text-xs uppercase font-bold">
+                            <th class="py-2 px-2">Qtd</th>
+                            <th class="py-2 px-2">Descrição do Serviço</th>
+                            <th class="py-2 px-2">Complexidade</th>
+                            <th class="py-2 px-2 text-right">Valor Unit.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdf-tabela-corpo">
+                        <!-- Itens via JS -->
+                    </tbody>
+                </table>
+
+                <!-- Totais -->
+                <div class="flex justify-end">
+                    <div class="w-64 space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-500">Subtotal:</span>
+                            <span id="pdf-subtotal" class="font-mono">R$ 0,00</span>
+                        </div>
+                        <div id="pdf-linha-desconto" class="flex justify-between text-sm text-red-600 font-bold">
+                            <span>Desconto:</span>
+                            <span id="pdf-desconto" class="font-mono">- R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between border-t-2 border-slate-900 pt-2">
+                            <span class="font-bold">TOTAL:</span>
+                            <span id="pdf-total" class="text-xl font-black font-mono">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rodapé / Termos -->
+                <div class="pt-12 space-y-4">
+                    <div class="border-l-4 border-indigo-600 pl-4 py-2 bg-indigo-50">
+                        <p class="text-xs font-bold text-indigo-900 uppercase">Observações Importantes:</p>
+                        <ul class="text-[10px] text-indigo-800 mt-1 space-y-1">
+                            <li>• Validade deste orçamento: 07 dias corridos.</li>
+                            <li>• Prazo de entrega estimado após aprovação: 03 a 05 dias úteis.</li>
+                            <li>• Peças não retiradas em 90 dias serão doadas conforme lei vigente.</li>
+                        </ul>
+                    </div>
+                    <p class="text-center text-[10px] text-slate-400 italic">Este documento é um orçamento prévio e não substitui a nota fiscal de serviço.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
