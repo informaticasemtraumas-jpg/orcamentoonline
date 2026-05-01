@@ -91,32 +91,16 @@ function salvarConfig() {
     localStorage.setItem('configAtelie', JSON.stringify(config));
 }
 
-function calcularPrecoServico(tempoMin, custoMateriais) {
-    const salario = parseFloat(document.getElementById('salario').value) || 0;
-    const horasMes = parseFloat(document.getElementById('horas-mes').value) || 1;
-    const valorMinuto = (salario / horasMes) / 60;
-    
-    const tempoPreparo = parseFloat(document.getElementById('base-preparo').value) || 0;
-    const custoFixo = parseFloat(document.getElementById('base-fixo').value) || 0;
-    const margemLucro = (parseFloat(document.getElementById('base-margem').value) || 0) / 100;
+function calcularPrecoServico(precoBase) {
     const isUrgente = document.getElementById('urgencia').checked;
 
-    // Cálculo Base: (Tempo de Costura + Tempo de Mesa) * Valor do Minuto
-    let precoMaoDeObra = (tempoMin + tempoPreparo) * valorMinuto;
-    
-    // Aplica Complexidade
-    precoMaoDeObra *= complexidadeAtual;
+    // Aplica Complexidade ao preço base
+    let precoFinal = precoBase * complexidadeAtual;
 
-    // Soma Materiais e Custos Fixos
-    let subtotal = precoMaoDeObra + custoMateriais + custoFixo;
+    // Aplica Urgência se houver (+30%)
+    if (isUrgente) precoFinal *= 1.30;
 
-    // Aplica Margem de Lucro
-    let precoComMargem = subtotal / (1 - margemLucro);
-
-    // Aplica Urgência se houver
-    if (isUrgente) precoComMargem *= 1.30;
-
-    return Math.ceil(precoComMargem);
+    return Math.ceil(precoFinal);
 }
 
 function adicionarPeca() {
@@ -128,9 +112,8 @@ function adicionarPeca() {
         return;
     }
 
-    const tempo = parseFloat(option.dataset.tempo);
-    const materiais = parseFloat(option.dataset.materiais);
-    const precoFinal = calcularPrecoServico(tempo, materiais);
+    const precoBase = parseFloat(option.dataset.preco);
+    const precoFinal = calcularPrecoServico(precoBase);
 
     const novaPeca = {
         id: Date.now(),

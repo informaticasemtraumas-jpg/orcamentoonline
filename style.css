@@ -11,6 +11,17 @@ body {
 
 /* Estilos específicos para a impressão do PDF */
 @media print {
+    @page {
+        margin: 0;
+        size: auto;
+    }
+
+    body {
+        background: white;
+        margin: 0;
+        padding: 0;
+    }
+
     body * { 
         visibility: hidden; 
     }
@@ -24,9 +35,11 @@ body {
         left: 0;
         top: 0;
         width: 100%;
+        height: auto;
         background: white;
         margin: 0;
         padding: 0;
+        display: block !important;
     }
     
     .no-print { 
@@ -38,6 +51,7 @@ body {
         border: none !important;
         width: 100% !important;
         max-width: 100% !important;
-        padding: 2cm !important;
+        padding: 1.5cm !important;
+        min-height: auto !important;
     }
 }
