@@ -1,14 +1,6 @@
 // Configuração do Supabase
-// Na Vercel, essas variáveis serão buscadas do ambiente. 
-// Localmente ou no GitHub Pages, elas usam os valores padrão abaixo.
-const SUPABASE_URL = window.location.hostname.includes('vercel.app') 
-    ? (window.ENV?.SUPABASE_URL || 'https://ifmqqaxherxadjsxljpv.supabase.co')
-    : 'https://ifmqqaxherxadjsxljpv.supabase.co';
-
-const SUPABASE_KEY = window.location.hostname.includes('vercel.app')
-    ? (window.ENV?.SUPABASE_KEY || 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK')
-    : 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
-
+const SUPABASE_URL = 'https://ifmqqaxherxadjsxljpv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Inicialização dos ícones Lucide
@@ -19,6 +11,7 @@ let itensOrcamento = [];
 let complexidadeAtual = 1.0;
 let complexidadeNome = "Padrão";
 let currentUser = null;
+let statusChart = null;
 
 // Formatador de Moeda
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
@@ -131,6 +124,8 @@ async function carregarHistorico() {
         return;
     }
 
+    atualizarDashboard(data);
+
     const container = document.getElementById('lista-historico');
     if (data.length === 0) {
         container.innerHTML = '<p class="text-center text-slate-400 py-8">Nenhum orçamento encontrado.</p>';
@@ -176,6 +171,88 @@ async function carregarHistorico() {
             </div>
         `;
     }).join('');
+}
+
+// --- DASHBOARD ---
+
+function atualizarDashboard(data) {
+    const agora = new Date();
+    const mesAtual = agora.getMonth();
+    const anoAtual = agora.getFullYear();
+
+    let totalGeral = 0;
+    let totalMes = 0;
+    let totalReceber = 0;
+    
+    const statusCounts = {
+        'Pendente': 0,
+        'Em Produção': 0,
+        'Pronto': 0,
+        'Entregue': 0
+    };
+
+    data.forEach(orc => {
+        const dataOrc = new Date(orc.created_at);
+        const valor = orc.total || 0;
+        const status = orc.status || 'Pendente';
+
+        totalGeral += valor;
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+        if (dataOrc.getMonth() === mesAtual && dataOrc.getFullYear() === anoAtual) {
+            totalMes += valor;
+        }
+
+        if (status === 'Pronto' || status === 'Em Produção' || status === 'Pendente') {
+            totalReceber += valor;
+        }
+    });
+
+    document.getElementById('dash-total').innerText = formatadorMoeda.format(totalGeral);
+    document.getElementById('dash-mes').innerText = formatadorMoeda.format(totalMes);
+    document.getElementById('dash-receber').innerText = formatadorMoeda.format(totalReceber);
+
+    renderizarGrafico(statusCounts);
+}
+
+function renderizarGrafico(counts) {
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    
+    if (statusChart) {
+        statusChart.destroy();
+    }
+
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(counts),
+            datasets: [{
+                data: Object.values(counts),
+                backgroundColor: [
+                    '#f59e0b', // Pendente (Amber)
+                    '#3b82f6', // Em Produção (Blue)
+                    '#10b981', // Pronto (Emerald)
+                    '#94a3b8'  // Entregue (Slate)
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        usePointStyle: true,
+                        font: { size: 10, weight: 'bold' }
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
 }
 
 // --- LÓGICA DO GERADOR ---
