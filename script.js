@@ -95,7 +95,7 @@ async function salvarNoBanco(dados) {
             subtotal: dados.subtotal,
             desconto: dados.desconto,
             total: dados.total,
-            status: 'Pendente',
+            status: 'Aguardando Aprovação',
             user_id: currentUser.id
         }]);
 
@@ -110,6 +110,18 @@ async function atualizarStatus(id, novoStatus) {
         .eq('id', id);
 
     if (error) alert("Erro ao atualizar status: " + error.message);
+    else carregarHistorico();
+}
+
+async function excluirOrcamento(id) {
+    if (!confirm("Tem certeza que deseja excluir este orçamento permanentemente?")) return;
+
+    const { error } = await supabaseClient
+        .from('orcamentos')
+        .delete()
+        .eq('id', id);
+
+    if (error) alert("Erro ao excluir: " + error.message);
     else carregarHistorico();
 }
 
@@ -134,10 +146,11 @@ async function carregarHistorico() {
 
     container.innerHTML = data.map(orc => {
         const statusColors = {
+            'Aguardando Aprovação': 'bg-slate-100 text-slate-500 border-slate-200',
             'Pendente': 'bg-amber-100 text-amber-700 border-amber-200',
             'Em Produção': 'bg-blue-100 text-blue-700 border-blue-200',
             'Pronto': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-            'Entregue': 'bg-slate-100 text-slate-600 border-slate-200'
+            'Entregue': 'bg-indigo-100 text-indigo-700 border-indigo-200'
         };
 
         return `
@@ -149,9 +162,14 @@ async function carregarHistorico() {
                             ${new Date(orc.created_at).toLocaleDateString('pt-BR')} às ${new Date(orc.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
                         </p>
                     </div>
-                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border ${statusColors[orc.status] || statusColors['Pendente']}">
-                        ${orc.status || 'Pendente'}
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border ${statusColors[orc.status] || statusColors['Pendente']}">
+                            ${orc.status || 'Pendente'}
+                        </span>
+                        <button onclick="excluirOrcamento(${orc.id})" class="p-2 text-slate-300 hover:text-red-500 transition-all">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="flex justify-between items-center pt-2 border-t border-slate-50">
@@ -161,6 +179,7 @@ async function carregarHistorico() {
                     <div class="flex gap-1">
                         <select onchange="atualizarStatus(${orc.id}, this.value)" class="text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg p-1 outline-none">
                             <option value="" disabled selected>Alterar Status</option>
+                            <option value="Aguardando Aprovação">Aguardando Aprovação</option>
                             <option value="Pendente">Pendente</option>
                             <option value="Em Produção">Em Produção</option>
                             <option value="Pronto">Pronto</option>
@@ -171,6 +190,7 @@ async function carregarHistorico() {
             </div>
         `;
     }).join('');
+    lucide.createIcons();
 }
 
 // --- DASHBOARD ---
@@ -185,6 +205,7 @@ function atualizarDashboard(data) {
     let totalReceber = 0;
     
     const statusCounts = {
+        'Aguardando Aprovação': 0,
         'Pendente': 0,
         'Em Produção': 0,
         'Pronto': 0,
@@ -199,10 +220,12 @@ function atualizarDashboard(data) {
         totalGeral += valor;
         statusCounts[status] = (statusCounts[status] || 0) + 1;
 
-        if (dataOrc.getMonth() === mesAtual && dataOrc.getFullYear() === anoAtual) {
+        // Faturamento do mês (apenas o que já foi confirmado/entregue ou está em produção)
+        if (dataOrc.getMonth() === mesAtual && dataOrc.getFullYear() === anoAtual && status !== 'Aguardando Aprovação') {
             totalMes += valor;
         }
 
+        // A receber (Confirmados mas não entregues)
         if (status === 'Pronto' || status === 'Em Produção' || status === 'Pendente') {
             totalReceber += valor;
         }
@@ -229,10 +252,11 @@ function renderizarGrafico(counts) {
             datasets: [{
                 data: Object.values(counts),
                 backgroundColor: [
+                    '#94a3b8', // Aguardando Aprovação (Slate)
                     '#f59e0b', // Pendente (Amber)
                     '#3b82f6', // Em Produção (Blue)
                     '#10b981', // Pronto (Emerald)
-                    '#94a3b8'  // Entregue (Slate)
+                    '#4f46e5'  // Entregue (Indigo)
                 ],
                 borderWidth: 0,
                 hoverOffset: 4
