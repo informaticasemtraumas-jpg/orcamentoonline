@@ -1,7 +1,7 @@
 // Configuração do Supabase
 const SUPABASE_URL = 'https://ifmqqaxherxadjsxljpv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Inicialização dos ícones Lucide
 lucide.createIcons();
@@ -21,7 +21,7 @@ const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
 // --- SISTEMA DE AUTENTICAÇÃO ---
 
 async function checkUser() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
         currentUser = user;
         document.getElementById('auth-container').classList.add('hidden');
@@ -39,7 +39,7 @@ async function handleLogin() {
     const password = document.getElementById('auth-password').value;
     const errorEl = document.getElementById('auth-error');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
     if (error) {
         errorEl.innerText = "Erro ao entrar: " + error.message;
@@ -64,7 +64,7 @@ async function handleSignUp() {
     errorEl.classList.remove('hidden');
     errorEl.classList.replace('text-red-500', 'text-indigo-600');
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
 
     if (error) {
         errorEl.innerText = "Erro ao cadastrar: " + error.message;
@@ -78,14 +78,14 @@ async function handleSignUp() {
 }
 
 async function handleLogout() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     location.reload();
 }
 
 // --- GESTÃO DE DADOS (SUPABASE) ---
 
 async function salvarNoBanco(dados) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('orcamentos')
         .insert([{
             cliente: dados.cliente,
@@ -102,7 +102,7 @@ async function salvarNoBanco(dados) {
 }
 
 async function carregarHistorico() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('orcamentos')
         .select('*')
         .order('created_at', { ascending: false });
