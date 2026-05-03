@@ -1,6 +1,14 @@
 // Configuração do Supabase
-const SUPABASE_URL = 'https://ifmqqaxherxadjsxljpv.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
+// Na Vercel, essas variáveis serão buscadas do ambiente. 
+// Localmente ou no GitHub Pages, elas usam os valores padrão abaixo.
+const SUPABASE_URL = window.location.hostname.includes('vercel.app') 
+    ? (window.ENV?.SUPABASE_URL || 'https://ifmqqaxherxadjsxljpv.supabase.co')
+    : 'https://ifmqqaxherxadjsxljpv.supabase.co';
+
+const SUPABASE_KEY = window.location.hostname.includes('vercel.app')
+    ? (window.ENV?.SUPABASE_KEY || 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK')
+    : 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
+
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Inicialização dos ícones Lucide
@@ -94,10 +102,21 @@ async function salvarNoBanco(dados) {
             subtotal: dados.subtotal,
             desconto: dados.desconto,
             total: dados.total,
+            status: 'Pendente',
             user_id: currentUser.id
         }]);
 
     if (error) console.error("Erro ao salvar:", error);
+    else carregarHistorico();
+}
+
+async function atualizarStatus(id, novoStatus) {
+    const { error } = await supabaseClient
+        .from('orcamentos')
+        .update({ status: novoStatus })
+        .eq('id', id);
+
+    if (error) alert("Erro ao atualizar status: " + error.message);
     else carregarHistorico();
 }
 
@@ -118,19 +137,45 @@ async function carregarHistorico() {
         return;
     }
 
-    container.innerHTML = data.map(orc => `
-        <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center">
-            <div>
-                <p class="font-bold text-slate-800">${orc.cliente || 'Sem Nome'}</p>
-                <p class="text-[10px] text-slate-400 uppercase font-bold">
-                    ${new Date(orc.created_at).toLocaleDateString('pt-BR')} • ${orc.itens.length} itens
-                </p>
+    container.innerHTML = data.map(orc => {
+        const statusColors = {
+            'Pendente': 'bg-amber-100 text-amber-700 border-amber-200',
+            'Em Produção': 'bg-blue-100 text-blue-700 border-blue-200',
+            'Pronto': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'Entregue': 'bg-slate-100 text-slate-600 border-slate-200'
+        };
+
+        return `
+            <div class="p-5 bg-white border border-slate-100 rounded-3xl shadow-sm space-y-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-black text-slate-800 text-lg">${orc.cliente || 'Consumidor'}</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                            ${new Date(orc.created_at).toLocaleDateString('pt-BR')} às ${new Date(orc.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border ${statusColors[orc.status] || statusColors['Pendente']}">
+                        ${orc.status || 'Pendente'}
+                    </span>
+                </div>
+                
+                <div class="flex justify-between items-center pt-2 border-t border-slate-50">
+                    <div class="text-indigo-600 font-black text-xl">
+                        ${formatadorMoeda.format(orc.total)}
+                    </div>
+                    <div class="flex gap-1">
+                        <select onchange="atualizarStatus(${orc.id}, this.value)" class="text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg p-1 outline-none">
+                            <option value="" disabled selected>Alterar Status</option>
+                            <option value="Pendente">Pendente</option>
+                            <option value="Em Produção">Em Produção</option>
+                            <option value="Pronto">Pronto</option>
+                            <option value="Entregue">Entregue</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="font-black text-indigo-600">${formatadorMoeda.format(orc.total)}</p>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // --- LÓGICA DO GERADOR ---
@@ -147,6 +192,8 @@ function switchTab(tab) {
     document.getElementById('tab-historico').className = !isGerador 
         ? "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all bg-white text-indigo-600 shadow-sm"
         : "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50";
+
+    if (!isGerador) carregarHistorico();
 }
 
 function toggleConfig() {
@@ -178,7 +225,7 @@ function adicionarPeca() {
 
     itensOrcamento.push({
         id: Date.now(),
-        nome: option.text,
+        nome: option.text.split(' - ')[0],
         complexidadeNome: complexidadeNome,
         precoUnitario: precoFinal
     });
@@ -190,7 +237,7 @@ function adicionarPeca() {
 function renderizarLista() {
     const container = document.getElementById('lista-pecas');
     container.innerHTML = itensOrcamento.map(item => `
-        <div class="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
+        <div class="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
             <div>
                 <p class="font-bold text-slate-800">${item.nome}</p>
                 <p class="text-[10px] text-slate-400 uppercase font-bold">${item.complexidadeNome}</p>
