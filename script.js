@@ -53,14 +53,27 @@ async function handleSignUp() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const errorEl = document.getElementById('auth-error');
+    
+    if (!email || !password) {
+        errorEl.innerText = "Preencha e-mail e senha.";
+        errorEl.classList.remove('hidden');
+        return;
+    }
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    errorEl.innerText = "Processando cadastro...";
+    errorEl.classList.remove('hidden');
+    errorEl.classList.replace('text-red-500', 'text-indigo-600');
+
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
         errorEl.innerText = "Erro ao cadastrar: " + error.message;
+        errorEl.classList.replace('text-indigo-600', 'text-red-500');
         errorEl.classList.remove('hidden');
     } else {
-        alert("Cadastro realizado! Verifique seu e-mail ou tente entrar.");
+        errorEl.innerText = "Cadastro realizado! Tente fazer login agora.";
+        errorEl.classList.replace('text-red-500', 'text-emerald-600');
+        alert("Cadastro realizado com sucesso! Se você não desativou a confirmação de e-mail no Supabase, verifique sua caixa de entrada.");
     }
 }
 
