@@ -8,6 +8,7 @@ lucide.createIcons();
 
 // Estado Global
 let itensOrcamento = [];
+let materiaisProducao = [];
 let complexidadeAtual = 1.0;
 let complexidadeNome = "Padrão";
 let currentUser = null;
@@ -220,12 +221,10 @@ function atualizarDashboard(data) {
         totalGeral += valor;
         statusCounts[status] = (statusCounts[status] || 0) + 1;
 
-        // Faturamento do mês (apenas o que já foi confirmado/entregue ou está em produção)
         if (dataOrc.getMonth() === mesAtual && dataOrc.getFullYear() === anoAtual && status !== 'Aguardando Aprovação') {
             totalMes += valor;
         }
 
-        // A receber (Confirmados mas não entregues)
         if (status === 'Pronto' || status === 'Em Produção' || status === 'Pendente') {
             totalReceber += valor;
         }
@@ -279,22 +278,108 @@ function renderizarGrafico(counts) {
     });
 }
 
-// --- LÓGICA DO GERADOR ---
+// --- CALCULADORA DE PRODUÇÃO ---
+
+function converterMedida() {
+    const largura = parseFloat(document.getElementById('calc-largura').value) || 0;
+    const comprimento = parseFloat(document.getElementById('calc-comprimento').value) || 0;
+    const area = (largura * comprimento) / 10000; // cm2 para m2
+    document.getElementById('calc-area-res').innerText = area.toFixed(4) + " m²";
+    return area;
+}
+
+function adicionarMaterial() {
+    const nome = document.getElementById('mat-nome').value;
+    const unidade = document.getElementById('mat-unidade').value;
+    const qtd = parseFloat(document.getElementById('mat-qtd').value) || 0;
+    const preco = parseFloat(document.getElementById('mat-preco').value) || 0;
+
+    if (!nome || qtd <= 0 || preco <= 0) return alert("Preencha todos os campos do material.");
+
+    materiaisProducao.push({
+        id: Date.now(),
+        nome,
+        unidade,
+        qtd,
+        preco,
+        custoTotal: qtd * preco
+    });
+
+    renderizarMateriais();
+    calcularCustoProducao();
+    
+    // Limpa campos
+    document.getElementById('mat-nome').value = '';
+    document.getElementById('mat-qtd').value = '';
+    document.getElementById('mat-preco').value = '';
+}
+
+function renderizarMateriais() {
+    const container = document.getElementById('lista-materiais');
+    container.innerHTML = materiaisProducao.map(m => `
+        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div>
+                <p class="text-xs font-bold text-slate-800">${m.nome}</p>
+                <p class="text-[10px] text-slate-400 uppercase font-bold">${m.qtd} ${m.unidade} x ${formatadorMoeda.format(m.preco)}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-indigo-600">${formatadorMoeda.format(m.custoTotal)}</span>
+                <button onclick="removerMaterial(${m.id})" class="text-slate-300 hover:text-red-500">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+function removerMaterial(id) {
+    materiaisProducao = materiaisProducao.filter(m => m.id !== id);
+    renderizarMateriais();
+    calcularCustoProducao();
+}
+
+function calcularCustoProducao() {
+    const custoTotal = materiaisProducao.reduce((acc, m) => acc + m.custoTotal, 0);
+    const margem = parseFloat(document.getElementById('margem-lucro').value) || 0;
+    const precoSugerido = custoTotal * (1 + (margem / 100));
+
+    document.getElementById('custo-total-mat').innerText = formatadorMoeda.format(custoTotal);
+    document.getElementById('preco-sugerido').innerText = formatadorMoeda.format(precoSugerido);
+}
+
+function calcularPrecoVenda() {
+    calcularCustoProducao();
+}
+
+function limparCalculadora() {
+    if (!confirm("Deseja limpar todos os materiais da calculadora?")) return;
+    materiaisProducao = [];
+    document.getElementById('calc-largura').value = '';
+    document.getElementById('calc-comprimento').value = '';
+    document.getElementById('calc-area-res').innerText = "0,0000 m²";
+    renderizarMateriais();
+    calcularCustoProducao();
+}
+
+// --- LÓGICA DE NAVEGAÇÃO ---
 
 function switchTab(tab) {
-    const isGerador = tab === 'gerador';
-    document.getElementById('view-gerador').classList.toggle('hidden', !isGerador);
-    document.getElementById('view-historico').classList.toggle('hidden', isGerador);
+    const views = ['view-gerador', 'view-producao', 'view-historico'];
+    const tabs = ['tab-gerador', 'tab-producao', 'tab-historico'];
     
-    document.getElementById('tab-gerador').className = isGerador 
-        ? "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all bg-white text-indigo-600 shadow-sm"
-        : "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50";
-    
-    document.getElementById('tab-historico').className = !isGerador 
-        ? "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all bg-white text-indigo-600 shadow-sm"
-        : "flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50";
+    views.forEach(v => document.getElementById(v).classList.add('hidden'));
+    tabs.forEach(t => {
+        document.getElementById(t).classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+        document.getElementById(t).classList.add('text-slate-500', 'hover:bg-white/50');
+    });
 
-    if (!isGerador) carregarHistorico();
+    document.getElementById(`view-${tab}`).classList.remove('hidden');
+    const activeTab = document.getElementById(`tab-${tab}`);
+    activeTab.classList.remove('text-slate-500', 'hover:bg-white/50');
+    activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+
+    if (tab === 'historico') carregarHistorico();
 }
 
 function toggleConfig() {

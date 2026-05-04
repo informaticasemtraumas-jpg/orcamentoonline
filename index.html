@@ -74,11 +74,14 @@
         </div>
 
         <!-- Navegação -->
-        <div class="bg-slate-200/50 p-1 rounded-2xl flex gap-1">
-            <button id="tab-gerador" onclick="switchTab('gerador')" class="flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all bg-white text-indigo-600 shadow-sm">
-                Novo Orçamento
+        <div class="bg-slate-200/50 p-1 rounded-2xl flex gap-1 overflow-x-auto">
+            <button id="tab-gerador" onclick="switchTab('gerador')" class="flex-1 py-2 px-4 rounded-xl font-bold text-[10px] md:text-xs uppercase transition-all bg-white text-indigo-600 shadow-sm whitespace-nowrap">
+                Orçamento
             </button>
-            <button id="tab-historico" onclick="switchTab('historico')" class="flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50">
+            <button id="tab-producao" onclick="switchTab('producao')" class="flex-1 py-2 px-4 rounded-xl font-bold text-[10px] md:text-xs uppercase transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
+                Calculadora Produção
+            </button>
+            <button id="tab-historico" onclick="switchTab('historico')" class="flex-1 py-2 px-4 rounded-xl font-bold text-[10px] md:text-xs uppercase transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
                 Gestão & Dashboard
             </button>
         </div>
@@ -185,6 +188,86 @@
                     <button onclick="enviarWhatsApp()" class="p-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
                         <i data-lucide="message-circle" class="w-5 h-5"></i> WhatsApp
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: CALCULADORA DE PRODUÇÃO -->
+        <div id="view-producao" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="calculator" class="w-4 h-4"></i> Calculadora de Materiais
+                    </h3>
+                    <button onclick="limparCalculadora()" class="text-red-500 text-[10px] font-bold uppercase">Limpar</button>
+                </div>
+
+                <!-- Conversor de Medidas -->
+                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-3">
+                    <p class="text-[10px] font-black text-indigo-600 uppercase tracking-wider">Conversor de Medidas (cm para m²)</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-1">Largura (cm)</label>
+                            <input type="number" id="calc-largura" oninput="converterMedida()" placeholder="Ex: 30" class="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-1">Comprimento (cm)</label>
+                            <input type="number" id="calc-comprimento" oninput="converterMedida()" placeholder="Ex: 35" class="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none text-sm">
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2">
+                        <span class="text-xs font-bold text-indigo-700">Área Calculada:</span>
+                        <span id="calc-area-res" class="text-sm font-black text-indigo-800">0,0000 m²</span>
+                    </div>
+                </div>
+
+                <!-- Adicionar Material -->
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input type="text" id="mat-nome" placeholder="Nome do Material (Ex: Tecido)" class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
+                        <select id="mat-unidade" class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
+                            <option value="m2">Metros Quadrados (m²)</option>
+                            <option value="m">Metros Lineares (m)</option>
+                            <option value="un">Unidades (un)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-1">Qtd. Utilizada</label>
+                            <input type="number" id="mat-qtd" step="0.001" placeholder="Ex: 0.105" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-1">Preço Unitário (R$)</label>
+                            <input type="number" id="mat-preco" step="0.01" placeholder="Ex: 3.30" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
+                        </div>
+                    </div>
+                    <button onclick="adicionarMaterial()" class="w-full p-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Material
+                    </button>
+                </div>
+
+                <!-- Lista de Materiais -->
+                <div id="lista-materiais" class="space-y-2 border-t border-slate-50 pt-4">
+                    <!-- Materiais entram aqui -->
+                </div>
+
+                <!-- Resumo de Custo -->
+                <div class="bg-slate-900 p-6 rounded-3xl text-white space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400 text-xs font-bold uppercase">Custo Total de Materiais</span>
+                        <span id="custo-total-mat" class="text-2xl font-black">R$ 0,00</span>
+                    </div>
+                    <div class="h-px bg-slate-800"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Margem de Lucro (%)</label>
+                            <input type="number" id="margem-lucro" value="100" oninput="calcularPrecoVenda()" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white outline-none mt-1">
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-bold text-slate-500 uppercase">Preço Sugerido</p>
+                            <p id="preco-sugerido" class="text-xl font-black text-emerald-400 mt-1">R$ 0,00</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
