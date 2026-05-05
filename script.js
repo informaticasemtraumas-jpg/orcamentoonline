@@ -44,6 +44,8 @@ async function carregarMateriais() {
 
 function renderizarListaEstoque(listaFiltrada = null) {
     const container = document.getElementById('lista-estoque');
+    if (!container) return;
+
     const lista = listaFiltrada || materiais;
 
     if (lista.length === 0) {
@@ -316,6 +318,8 @@ async function carregarHistorico() {
     atualizarDashboard(data);
 
     const container = document.getElementById('lista-historico');
+    if (!container) return;
+
     if (data.length === 0) {
         container.innerHTML = '<p class="text-center text-slate-400 py-8">Nenhum orçamento encontrado.</p>';
         return;
@@ -406,15 +410,21 @@ function atualizarDashboard(data) {
         }
     });
 
-    document.getElementById('dash-total').innerText = formatadorMoeda.format(totalGeral);
-    document.getElementById('dash-mes').innerText = formatadorMoeda.format(totalMes);
-    document.getElementById('dash-receber').innerText = formatadorMoeda.format(totalReceber);
+    const dashTotal = document.getElementById('dash-total');
+    const dashMes = document.getElementById('dash-mes');
+    const dashReceber = document.getElementById('dash-receber');
+
+    if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
+    if (dashMes) dashMes.innerText = formatadorMoeda.format(totalMes);
+    if (dashReceber) dashReceber.innerText = formatadorMoeda.format(totalReceber);
 
     renderizarGrafico(statusCounts);
 }
 
 function renderizarGrafico(counts) {
-    const ctx = document.getElementById('statusChart').getContext('2d');
+    const canvas = document.getElementById('statusChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     
     if (statusChart) {
         statusChart.destroy();
@@ -460,7 +470,8 @@ function converterMedida() {
     const largura = parseFloat(document.getElementById('calc-largura').value) || 0;
     const comprimento = parseFloat(document.getElementById('calc-comprimento').value) || 0;
     const area = (largura * comprimento) / 10000; // cm2 para m2
-    document.getElementById('calc-area-res').innerText = area.toFixed(4) + " m²";
+    const resEl = document.getElementById('calc-area-res');
+    if (resEl) resEl.innerText = area.toFixed(4) + " m²";
     return area;
 }
 
@@ -492,6 +503,8 @@ function adicionarMaterial() {
 
 function renderizarMateriais() {
     const container = document.getElementById('lista-materiais');
+    if (!container) return;
+
     container.innerHTML = materiaisProducao.map(m => `
         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
             <div>
@@ -520,8 +533,11 @@ function calcularCustoProducao() {
     const margem = parseFloat(document.getElementById('margem-lucro').value) || 0;
     const precoSugerido = custoTotal * (1 + (margem / 100));
 
-    document.getElementById('custo-total-mat').innerText = formatadorMoeda.format(custoTotal);
-    document.getElementById('preco-sugerido').innerText = formatadorMoeda.format(precoSugerido);
+    const custoEl = document.getElementById('custo-total-mat');
+    const precoEl = document.getElementById('preco-sugerido');
+
+    if (custoEl) custoEl.innerText = formatadorMoeda.format(custoTotal);
+    if (precoEl) precoEl.innerText = formatadorMoeda.format(precoSugerido);
 }
 
 function calcularPrecoVenda() {
@@ -533,7 +549,8 @@ function limparCalculadora() {
     materiaisProducao = [];
     document.getElementById('calc-largura').value = '';
     document.getElementById('calc-comprimento').value = '';
-    document.getElementById('calc-area-res').innerText = "0,0000 m²";
+    const resEl = document.getElementById('calc-area-res');
+    if (resEl) resEl.innerText = "0,0000 m²";
     renderizarMateriais();
     calcularCustoProducao();
 }
@@ -544,16 +561,27 @@ function switchTab(tab) {
     const views = ['view-gerador', 'view-producao', 'view-estoque', 'view-historico'];
     const tabs = ['tab-gerador', 'tab-producao', 'tab-estoque', 'tab-historico'];
     
-    views.forEach(v => document.getElementById(v).classList.add('hidden'));
-    tabs.forEach(t => {
-        document.getElementById(t).classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-        document.getElementById(t).classList.add('text-slate-500', 'hover:bg-white/50');
+    views.forEach(v => {
+        const el = document.getElementById(v);
+        if (el) el.classList.add('hidden');
     });
 
-    document.getElementById(`view-${tab}`).classList.remove('hidden');
+    tabs.forEach(t => {
+        const el = document.getElementById(t);
+        if (el) {
+            el.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+            el.classList.add('text-slate-500', 'hover:bg-white/50');
+        }
+    });
+
+    const targetView = document.getElementById(`view-${tab}`);
+    if (targetView) targetView.classList.remove('hidden');
+
     const activeTab = document.getElementById(`tab-${tab}`);
-    activeTab.classList.remove('text-slate-500', 'hover:bg-white/50');
-    activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+    if (activeTab) {
+        activeTab.classList.remove('text-slate-500', 'hover:bg-white/50');
+        activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+    }
 
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
@@ -562,8 +590,8 @@ function switchTab(tab) {
 function toggleConfig() {
     const content = document.getElementById('config-content');
     const icon = document.getElementById('config-icon');
-    content.classList.toggle('config-hidden');
-    icon.style.transform = content.classList.contains('config-hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    if (content) content.classList.toggle('config-hidden');
+    if (icon) icon.style.transform = content.classList.contains('config-hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 function setComplex(valor, btn) {
@@ -599,6 +627,8 @@ function adicionarPeca() {
 
 function renderizarLista() {
     const container = document.getElementById('lista-pecas');
+    if (!container) return;
+
     container.innerHTML = itensOrcamento.map(item => `
         <div class="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
             <div>
@@ -624,12 +654,17 @@ function removerPeca(id) {
 
 function calcularTotal() {
     const subtotal = itensOrcamento.reduce((acc, i) => acc + i.precoUnitario, 0);
-    const desconto = parseFloat(document.getElementById('desconto').value) || 0;
+    const descontoInput = document.getElementById('desconto');
+    const desconto = descontoInput ? (parseFloat(descontoInput.value) || 0) : 0;
     const total = Math.max(0, subtotal - desconto);
 
-    document.getElementById('res-subtotal').innerText = formatadorMoeda.format(subtotal);
-    document.getElementById('res-desconto').innerText = `- ${formatadorMoeda.format(desconto)}`;
-    document.getElementById('res-total').innerText = formatadorMoeda.format(total);
+    const subEl = document.getElementById('res-subtotal');
+    const descEl = document.getElementById('res-desconto');
+    const totalEl = document.getElementById('res-total');
+
+    if (subEl) subEl.innerText = formatadorMoeda.format(subtotal);
+    if (descEl) descEl.innerText = `- ${formatadorMoeda.format(desconto)}`;
+    if (totalEl) totalEl.innerText = formatadorMoeda.format(total);
 
     return { subtotal, desconto, total };
 }
@@ -653,8 +688,12 @@ async function gerarPDF() {
     await salvarNoBanco(dados);
 
     // Preenche PDF
-    document.getElementById('pdf-header-nome').innerText = document.getElementById('atelie-nome').value;
-    document.getElementById('pdf-header-contato').innerText = `WhatsApp: ${document.getElementById('atelie-fone').value} | ${document.getElementById('atelie-extra').value}`;
+    const atelieNome = document.getElementById('atelie-nome').value;
+    const atelieFone = document.getElementById('atelie-fone').value;
+    const atelieExtra = document.getElementById('atelie-extra').value;
+
+    document.getElementById('pdf-header-nome').innerText = atelieNome;
+    document.getElementById('pdf-header-contato').innerText = `WhatsApp: ${atelieFone} | ${atelieExtra}`;
     document.getElementById('pdf-cliente-nome').innerText = dados.cliente;
     document.getElementById('pdf-cliente-fone').innerText = dados.whatsapp;
     document.getElementById('pdf-data').innerText = new Date().toLocaleDateString('pt-BR');
@@ -679,7 +718,8 @@ async function gerarPDF() {
 function enviarWhatsApp() {
     const totais = calcularTotal();
     const cliente = document.getElementById('cliente').value || "Cliente";
-    const fone = document.getElementById('whatsapp').value.replace(/\D/g, '');
+    const foneInput = document.getElementById('whatsapp');
+    const fone = foneInput ? foneInput.value.replace(/\D/g, '') : '';
     
     let msg = `*ORÇAMENTO - ${document.getElementById('atelie-nome').value}*\nOlá, ${cliente}!\n\n`;
     itensOrcamento.forEach((i, idx) => msg += `${idx+1}. ${i.nome} - *${formatadorMoeda.format(i.precoUnitario)}*\n`);
@@ -694,9 +734,12 @@ function imprimirPDF() { window.print(); }
 function carregarConfig() {
     const config = JSON.parse(localStorage.getItem('configAtelieViva'));
     if (config) {
-        document.getElementById('atelie-nome').value = config.nome;
-        document.getElementById('atelie-fone').value = config.fone;
-        document.getElementById('atelie-extra').value = config.extra;
+        const nomeEl = document.getElementById('atelie-nome');
+        const foneEl = document.getElementById('atelie-fone');
+        const extraEl = document.getElementById('atelie-extra');
+        if (nomeEl) nomeEl.value = config.nome;
+        if (foneEl) foneEl.value = config.fone;
+        if (extraEl) extraEl.value = config.extra;
     }
 }
 
