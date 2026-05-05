@@ -6,19 +6,194 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Inicialização dos ícones Lucide
 lucide.createIcons();
 
-// Estado Global
+// ==================== ESTADO GLOBAL ====================
 let itensOrcamento = [];
 let materiaisProducao = [];
 let complexidadeAtual = 1.0;
 let complexidadeNome = "Padrão";
 let currentUser = null;
 let statusChart = null;
+let materiais = [];
 
 // Formatador de Moeda
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
 });
+
+// ====================== ESTOQUE ======================
+
+async function carregarMateriais() {
+    if (!currentUser) return;
+    
+    const { data, error } = await supabaseClient
+        .from('materiais')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('nome', { ascending: true });
+
+    if (error) {
+        console.error("Erro ao carregar materiais:", error);
+        showToast("Erro ao carregar estoque", "error");
+        return;
+    }
+
+    materiais = data || [];
+    renderizarListaEstoque();
+}
+
+function renderizarListaEstoque(listaFiltrada = null) {
+    const container = document.getElementById('lista-estoque');
+    const lista = listaFiltrada || materiais;
+
+    if (lista.length === 0) {
+        container.innerHTML = `
+            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-3xl py-16 text-center">
+                <i data-lucide="package" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i>
+                <p class="text-slate-500">Nenhum material cadastrado ainda</p>
+                <button onclick="abrirModalNovoMaterial()" 
+                        class="mt-4 text-indigo-600 font-bold hover:underline">
+                    + Cadastrar primeiro material
+                </button>
+            </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    let html = '';
+
+    lista.forEach(item => {
+        const valorTotal = (parseFloat(item.quantidade) * parseFloat(item.preco_unitario)).toFixed(2);
+        
+        html += `
+        <div class="bg-white border border-slate-100 rounded-3xl p-6 hover:shadow-md transition-all">
+            <div class="flex justify-between">
+                <div class="flex-1">
+                    <h4 class="font-bold text-lg text-slate-800">${item.nome}</h4>
+                    ${item.descricao ? `<p class="text-sm text-slate-500 mt-1 line-clamp-2">${item.descricao}</p>` : ''}
+                </div>
+                <div class="text-right">
+                    <span class="inline-block px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-2xl text-sm">
+                        ${parseFloat(item.quantidade).toFixed(2)} ${item.unidade}
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-6">
+                <div>
+                    <p class="text-xs text-slate-500">Preço de custo</p>
+                    <p class="text-2xl font-bold text-slate-700">R$ ${parseFloat(item.preco_unitario).toFixed(2)}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-slate-500">Valor total em estoque</p>
+                    <p class="text-2xl font-bold text-emerald-600">R$ ${valorTotal}</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="ajustarEstoque(${item.id})" 
+                        class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 font-bold rounded-2xl transition-all text-sm">
+                    Ajustar Quantidade
+                </button>
+                <button onclick="excluirMaterial(${item.id})" 
+                        class="px-5 py-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl transition-all">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+    lucide.createIcons();
+}
+
+function filtrarEstoque() {
+    const termo = document.getElementById('filtro-estoque').value.toLowerCase().trim();
+    if (!termo) {
+        renderizarListaEstoque();
+        return;
+    }
+
+    const filtrados = materiais.filter(m => 
+        m.nome.toLowerCase().includes(termo) || 
+        (m.descricao && m.descricao.toLowerCase().includes(termo))
+    );
+    renderizarListaEstoque(filtrados);
+}
+
+function abrirModalNovoMaterial() {
+    const nome = prompt("Nome do material (ex: Zíper 30cm, Linha de Costura):");
+    if (!nome) return;
+
+    const unidade = prompt("Unidade de medida (ex: metros, cm, rolos, unidades):", "metros");
+    const quantidade = parseFloat(prompt("Quantidade inicial:", "0")) || 0;
+    const preco = parseFloat(prompt("Preço de custo unitário (R$):", "0")) || 0;
+    const descricao = prompt("Descrição (opcional):", "");
+
+    salvarNovoMaterial(nome, descricao, quantidade, unidade, preco);
+}
+
+async function salvarNovoMaterial(nome, descricao, quantidade, unidade, preco_unitario) {
+    if (!currentUser) return showToast("Você precisa estar logado", "error");
+
+    const { error } = await supabaseClient
+        .from('materiais')
+        .insert([{
+            user_id: currentUser.id,
+            nome: nome.trim(),
+            descricao: descricao || null,
+            quantidade: quantidade,
+            unidade: unidade,
+            preco_unitario: preco_unitario
+        }]);
+
+    if (error) {
+        console.error(error);
+        showToast("Erro ao salvar material", "error");
+    } else {
+        showToast("Material cadastrado com sucesso!", "success");
+        carregarMateriais();
+    }
+}
+
+async function ajustarEstoque(id) {
+    const material = materiais.find(m => m.id === id);
+    if (!material) return;
+
+    const novaQtd = prompt(`Quantidade atual: ${material.quantidade} ${material.unidade}\n\nNova quantidade:`, material.quantidade);
+    
+    if (novaQtd === null) return;
+    const quantidade = parseFloat(novaQtd);
+    if (isNaN(quantidade)) return alert("Digite um número válido!");
+
+    const { error } = await supabaseClient
+        .from('materiais')
+        .update({ 
+            quantidade: quantidade
+        })
+        .eq('id', id);
+
+    if (error) showToast("Erro ao atualizar", "error");
+    else {
+        showToast("Estoque atualizado com sucesso!");
+        carregarMateriais();
+    }
+}
+
+async function excluirMaterial(id) {
+    if (!confirm("Tem certeza que deseja excluir este material?")) return;
+
+    const { error } = await supabaseClient
+        .from('materiais')
+        .delete()
+        .eq('id', id);
+
+    if (error) showToast("Erro ao excluir", "error");
+    else {
+        showToast("Material excluído!");
+        carregarMateriais();
+    }
+}
 
 // --- SISTEMA DE AUTENTICAÇÃO ---
 
@@ -30,6 +205,7 @@ async function checkUser() {
         document.getElementById('app-container').classList.remove('hidden');
         carregarConfig();
         carregarHistorico();
+        carregarMateriais();
     } else {
         document.getElementById('auth-container').classList.remove('hidden');
         document.getElementById('app-container').classList.add('hidden');
@@ -75,7 +251,7 @@ async function handleSignUp() {
     } else {
         errorEl.innerText = "Cadastro realizado! Tente fazer login agora.";
         errorEl.classList.replace('text-red-500', 'text-emerald-600');
-        alert("Cadastro realizado com sucesso! Se você não desativou a confirmação de e-mail no Supabase, verifique sua caixa de entrada.");
+        alert("Cadastro realizado com sucesso!");
     }
 }
 
@@ -365,8 +541,8 @@ function limparCalculadora() {
 // --- LÓGICA DE NAVEGAÇÃO ---
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-producao', 'view-historico'];
-    const tabs = ['tab-gerador', 'tab-producao', 'tab-historico'];
+    const views = ['view-gerador', 'view-producao', 'view-estoque', 'view-historico'];
+    const tabs = ['tab-gerador', 'tab-producao', 'tab-estoque', 'tab-historico'];
     
     views.forEach(v => document.getElementById(v).classList.add('hidden'));
     tabs.forEach(t => {
@@ -380,6 +556,7 @@ function switchTab(tab) {
     activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
 
     if (tab === 'historico') carregarHistorico();
+    if (tab === 'estoque') carregarMateriais();
 }
 
 function toggleConfig() {
@@ -521,6 +698,17 @@ function carregarConfig() {
         document.getElementById('atelie-fone').value = config.fone;
         document.getElementById('atelie-extra').value = config.extra;
     }
+}
+
+function showToast(msg, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`;
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // Inicia verificação de usuário
