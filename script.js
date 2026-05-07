@@ -87,7 +87,7 @@ function renderizarListaEstoque(listaFiltrada = null) {
                 </div>
                 <div class="text-right">
                     <span class="inline-block px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-2xl text-sm">
-                        ${qtd.toFixed(2)} ${item.unidade}
+                        ${qtd.toFixed(4)} ${item.unidade}
                     </span>
                 </div>
             </div>
@@ -177,10 +177,59 @@ function renderizarCatalogo() {
                 <span class="text-indigo-600">Venda: ${formatadorMoeda.format(p.preco_venda)}</span>
             </div>
             <div class="flex gap-2 mt-6">
+                <button onclick="produzirPeca(${p.id})" class="flex-[2] py-3 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">PRODUZIR</button>
                 <button onclick="excluirPeca(${p.id})" class="flex-1 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all">Excluir</button>
             </div>
         </div>
     `).join('');
+}
+
+async function produzirPeca(id) {
+    const peca = pecasCatalogo.find(p => p.id === id);
+    const qtdProduzir = parseInt(prompt(`Quantas unidades de "${peca.nome}" você produziu?`, "1")) || 0;
+    if (qtdProduzir <= 0) return;
+
+    // 1. Buscar a composição da peça
+    const { data: composicao, error } = await supabaseClient
+        .from('composicao_peca')
+        .select('material_id, quantidade_usada')
+        .eq('peca_id', id);
+
+    if (error || !composicao || composicao.length === 0) {
+        return alert("Esta peça não tem materiais cadastrados na composição.");
+    }
+
+    // 2. Verificar se há estoque suficiente para todos os materiais
+    for (const item of composicao) {
+        const material = materiais.find(m => m.id === item.material_id);
+        const totalNecessario = item.quantidade_usada * qtdProduzir;
+        if (!material || material.quantidade < totalNecessario) {
+            return alert(`Estoque insuficiente de "${material ? material.nome : 'Material desconhecido'}". Necessário: ${totalNecessario.toFixed(4)}, Disponível: ${material ? material.quantidade.toFixed(4) : 0}`);
+        }
+    }
+
+    if (!confirm(`Confirmar a produção de ${qtdProduzir} unidades? Isso descontará os materiais do estoque.`)) return;
+
+    // 3. Descontar do estoque
+    try {
+        for (const item of composicao) {
+            const material = materiais.find(m => m.id === item.material_id);
+            const novaQtd = material.quantidade - (item.quantidade_usada * qtdProduzir);
+            
+            const { error: updateError } = await supabaseClient
+                .from('materiais')
+                .update({ quantidade: novaQtd })
+                .eq('id', item.material_id);
+            
+            if (updateError) throw updateError;
+        }
+        
+        showToast(`Produção de ${qtdProduzir} peças registrada! Estoque atualizado.`);
+        carregarMateriais();
+    } catch (err) {
+        console.error(err);
+        showToast("Erro ao atualizar estoque durante a produção", "error");
+    }
 }
 
 function abrirModalNovaPeca() {
