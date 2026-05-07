@@ -157,7 +157,7 @@ async function excluirMaterial(id) {
 
 async function carregarCatalogo() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient.from('pecas').select('*').eq('user_id', currentUser.id).order('name', { ascending: true });
+    const { data, error } = await supabaseClient.from('pecas').select('*').eq('user_id', currentUser.id).order('nome', { ascending: true });
     if (error) console.error(error);
     else { pecasCatalogo = data || []; renderizarCatalogo(); }
 }
@@ -171,7 +171,7 @@ function renderizarCatalogo() {
     }
     container.innerHTML = pecasCatalogo.map(p => `
         <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-            <h4 class="font-black text-xl text-slate-800">${p.name}</h4>
+            <h4 class="font-black text-xl text-slate-800">${p.nome}</h4>
             <div class="flex justify-between mt-4 text-sm font-bold">
                 <span class="text-slate-400 uppercase">Tempo: ${p.tempo_producao} min</span>
                 <span class="text-indigo-600">Venda: ${formatadorMoeda.format(p.preco_venda)}</span>
@@ -244,23 +244,32 @@ function calcularPrecoPeca() {
 }
 
 async function salvarPecaCompleta() {
-    const name = document.getElementById('peca-nome').value;
+    const nome = document.getElementById('peca-nome').value;
     const tempo = parseFloat(document.getElementById('peca-tempo').value) || 0;
     const { precoVenda, custoMaoDeObra } = calcularPrecoPeca();
 
-    if (!name || composicaoAtual.length === 0) return alert("Preencha o nome e adicione materiais.");
+    if (!nome || composicaoAtual.length === 0) return alert("Preencha o nome e adicione materiais.");
 
     const { data: peca, error: pecaError } = await supabaseClient.from('pecas').insert([{
-        user_id: currentUser.id, name, tempo_producao: tempo, mao_de_obra: custoMaoDeObra, preco_venda: precoVenda
+        user_id: currentUser.id, nome, tempo_producao: tempo, mao_de_obra: custoMaoDeObra, preco_venda: precoVenda
     }]).select().single();
 
-    if (pecaError) return showToast("Erro ao salvar peça", "error");
+    if (pecaError) {
+        console.error(pecaError);
+        return showToast("Erro ao salvar peça", "error");
+    }
 
     const composicao = composicaoAtual.map(c => ({ peca_id: peca.id, material_id: c.material_id, quantidade_usada: c.qtd }));
     const { error: compError } = await supabaseClient.from('composicao_peca').insert(composicao);
 
-    if (compError) showToast("Erro ao salvar composição", "error");
-    else { showToast("Peça salva no catálogo!"); fecharModalPeca(); carregarCatalogo(); }
+    if (compError) {
+        console.error(compError);
+        showToast("Erro ao salvar composição", "error");
+    } else { 
+        showToast("Peça salva no catálogo!"); 
+        fecharModalPeca(); 
+        carregarCatalogo(); 
+    }
 }
 
 async function excluirPeca(id) {
