@@ -87,7 +87,7 @@ function renderizarListaEstoque(listaFiltrada = null) {
                 </div>
                 <div class="text-right">
                     <span class="inline-block px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-2xl text-sm">
-                        ${qtd.toFixed(4)} ${item.unidade}
+                        ${parseFloat(qtd.toFixed(4))} ${item.unidade}
                     </span>
                 </div>
             </div>
