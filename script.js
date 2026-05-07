@@ -15,6 +15,14 @@ let currentUser = null;
 let statusChart = null;
 let materiais = [];
 
+// Configurações Financeiras (Padrão)
+let configFinanceira = {
+    valorHora: 0,
+    custosFixos: 0,
+    horasMes: 160,
+    custoMinuto: 0
+};
+
 // Formatador de Moeda
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -50,7 +58,7 @@ function renderizarListaEstoque(listaFiltrada = null) {
 
     if (lista.length === 0) {
         container.innerHTML = `
-            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-3xl py-16 text-center">
+            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-3xl py-16 text-center col-span-full">
                 <i data-lucide="package" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i>
                 <p class="text-slate-500">Nenhum material cadastrado ainda</p>
                 <button onclick="abrirModalNovoMaterial()" 
@@ -65,7 +73,9 @@ function renderizarListaEstoque(listaFiltrada = null) {
     let html = '';
 
     lista.forEach(item => {
-        const valorTotal = (parseFloat(item.quantidade) * parseFloat(item.preco_unitario)).toFixed(2);
+        const preco = parseFloat(item.preco_unitario) || 0;
+        const qtd = parseFloat(item.quantidade) || 0;
+        const valorTotal = (qtd * preco).toFixed(2);
         
         html += `
         <div class="bg-white border border-slate-100 rounded-3xl p-6 hover:shadow-md transition-all">
@@ -76,7 +86,7 @@ function renderizarListaEstoque(listaFiltrada = null) {
                 </div>
                 <div class="text-right">
                     <span class="inline-block px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-2xl text-sm">
-                        ${parseFloat(item.quantidade).toFixed(2)} ${item.unidade}
+                        ${qtd.toFixed(2)} ${item.unidade}
                     </span>
                 </div>
             </div>
@@ -84,7 +94,7 @@ function renderizarListaEstoque(listaFiltrada = null) {
             <div class="grid grid-cols-2 gap-4 mt-6">
                 <div>
                     <p class="text-xs text-slate-500">Preço de custo</p>
-                    <p class="text-2xl font-bold text-slate-700">R$ ${parseFloat(item.preco_unitario).toFixed(2)}</p>
+                    <p class="text-2xl font-bold text-slate-700">R$ ${preco.toFixed(2)}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-slate-500">Valor total em estoque</p>
@@ -94,12 +104,16 @@ function renderizarListaEstoque(listaFiltrada = null) {
 
             <div class="flex gap-3 mt-6">
                 <button onclick="ajustarEstoque(${item.id})" 
-                        class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 font-bold rounded-2xl transition-all text-sm">
-                    Ajustar Quantidade
+                        class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 font-bold rounded-2xl transition-all text-xs">
+                    Qtd
+                </button>
+                <button onclick="ajustarPreco(${item.id})" 
+                        class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 font-bold rounded-2xl transition-all text-xs">
+                    Preço
                 </button>
                 <button onclick="excluirMaterial(${item.id})" 
                         class="px-5 py-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl transition-all">
-                    <i data-lucide="trash-2"></i>
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>`;
@@ -170,14 +184,34 @@ async function ajustarEstoque(id) {
 
     const { error } = await supabaseClient
         .from('materiais')
-        .update({ 
-            quantidade: quantidade
-        })
+        .update({ quantidade: quantidade })
         .eq('id', id);
 
     if (error) showToast("Erro ao atualizar", "error");
     else {
-        showToast("Estoque atualizado com sucesso!");
+        showToast("Estoque atualizado!");
+        carregarMateriais();
+    }
+}
+
+async function ajustarPreco(id) {
+    const material = materiais.find(m => m.id === id);
+    if (!material) return;
+
+    const novoPreco = prompt(`Preço atual: R$ ${parseFloat(material.preco_unitario).toFixed(2)}\n\nNovo preço de custo:`, material.preco_unitario);
+    
+    if (novoPreco === null) return;
+    const preco = parseFloat(novoPreco);
+    if (isNaN(preco)) return alert("Digite um número válido!");
+
+    const { error } = await supabaseClient
+        .from('materiais')
+        .update({ preco_unitario: preco })
+        .eq('id', id);
+
+    if (error) showToast("Erro ao atualizar", "error");
+    else {
+        showToast("Preço atualizado!");
         carregarMateriais();
     }
 }
@@ -197,6 +231,37 @@ async function excluirMaterial(id) {
     }
 }
 
+// --- CONFIGURAÇÕES FINANCEIRAS ---
+
+function salvarConfigFinanceira() {
+    const valorHora = parseFloat(document.getElementById('cfg-valor-hora').value) || 0;
+    const custosFixos = parseFloat(document.getElementById('cfg-custos-fixos').value) || 0;
+    const horasMes = parseFloat(document.getElementById('cfg-horas-mes').value) || 160;
+
+    // Cálculo do custo por minuto: (Custos Fixos / (Horas Mes * 60)) + (Valor Hora / 60)
+    const custoMinuto = (custosFixos / (horasMes * 60)) + (valorHora / 60);
+
+    configFinanceira = { valorHora, custosFixos, horasMes, custoMinuto };
+    localStorage.setItem('configFinanceiraAtelie', JSON.stringify(configFinanceira));
+
+    document.getElementById('cfg-custo-minuto').innerText = formatadorMoeda.format(custoMinuto);
+    showToast("Configurações salvas com sucesso!");
+    
+    // Atualiza calculadora se houver tempo preenchido
+    calcularCustoProducao();
+}
+
+function carregarConfigFinanceira() {
+    const salva = localStorage.getItem('configFinanceiraAtelie');
+    if (salva) {
+        configFinanceira = JSON.parse(salva);
+        document.getElementById('cfg-valor-hora').value = configFinanceira.valorHora;
+        document.getElementById('cfg-custos-fixos').value = configFinanceira.custosFixos;
+        document.getElementById('cfg-horas-mes').value = configFinanceira.horasMes;
+        document.getElementById('cfg-custo-minuto').innerText = formatadorMoeda.format(configFinanceira.custoMinuto || 0);
+    }
+}
+
 // --- SISTEMA DE AUTENTICAÇÃO ---
 
 async function checkUser() {
@@ -208,6 +273,7 @@ async function checkUser() {
         carregarConfig();
         carregarHistorico();
         carregarMateriais();
+        carregarConfigFinanceira();
     } else {
         document.getElementById('auth-container').classList.remove('hidden');
         document.getElementById('app-container').classList.add('hidden');
@@ -244,7 +310,7 @@ async function handleSignUp() {
     errorEl.classList.remove('hidden');
     errorEl.classList.replace('text-red-500', 'text-indigo-600');
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    const { error } = await supabaseClient.auth.signUp({ email, password });
 
     if (error) {
         errorEl.innerText = "Erro ao cadastrar: " + error.message;
@@ -529,14 +595,22 @@ function removerMaterial(id) {
 }
 
 function calcularCustoProducao() {
-    const custoTotal = materiaisProducao.reduce((acc, m) => acc + m.custoTotal, 0);
+    const custoMateriais = materiaisProducao.reduce((acc, m) => acc + m.custoTotal, 0);
+    const tempo = parseFloat(document.getElementById('tempo-producao').value) || 0;
+    
+    // Custo Operacional = Tempo (min) * Custo por Minuto (das Configurações)
+    const custoOperacional = tempo * (configFinanceira.custoMinuto || 0);
+    
+    const custoTotal = custoMateriais + custoOperacional;
     const margem = parseFloat(document.getElementById('margem-lucro').value) || 0;
     const precoSugerido = custoTotal * (1 + (margem / 100));
 
-    const custoEl = document.getElementById('custo-total-mat');
+    const custoMatEl = document.getElementById('custo-total-mat');
+    const custoOpEl = document.getElementById('custo-operacional-res');
     const precoEl = document.getElementById('preco-sugerido');
 
-    if (custoEl) custoEl.innerText = formatadorMoeda.format(custoTotal);
+    if (custoMatEl) custoMatEl.innerText = formatadorMoeda.format(custoMateriais);
+    if (custoOpEl) custoOpEl.innerText = formatadorMoeda.format(custoOperacional);
     if (precoEl) precoEl.innerText = formatadorMoeda.format(precoSugerido);
 }
 
@@ -558,8 +632,8 @@ function limparCalculadora() {
 // --- LÓGICA DE NAVEGAÇÃO ---
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-producao', 'view-estoque', 'view-historico'];
-    const tabs = ['tab-gerador', 'tab-producao', 'tab-estoque', 'tab-historico'];
+    const views = ['view-gerador', 'view-producao', 'view-estoque', 'view-historico', 'view-config'];
+    const tabs = ['tab-gerador', 'tab-producao', 'tab-estoque', 'tab-historico', 'tab-config'];
     
     views.forEach(v => {
         const el = document.getElementById(v);
@@ -585,6 +659,7 @@ function switchTab(tab) {
 
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
+    if (tab === 'config') carregarConfigFinanceira();
 }
 
 function toggleConfig() {
