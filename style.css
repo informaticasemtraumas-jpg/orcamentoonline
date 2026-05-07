@@ -1,57 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 
-body { 
-    font-family: 'Inter', sans-serif; 
-    background-color: #f1f5f9; 
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
 }
 
-.config-hidden { 
-    display: none; 
+.config-hidden {
+    display: none;
 }
 
-/* Estilos específicos para a impressão do PDF */
+/* ============================================================
+   ESTILOS DE IMPRESSÃO — Garante que o PDF saia corretamente
+   ============================================================ */
 @media print {
     @page {
-        margin: 0;
-        size: auto;
+        margin: 1cm;
+        size: A4;
     }
 
-    body {
-        background: white;
-        margin: 0;
-        padding: 0;
+    /* Oculta tudo */
+    body * {
+        visibility: hidden;
     }
 
-    body * { 
-        visibility: hidden; 
+    /* Exibe apenas o conteúdo do PDF */
+    #modal-pdf,
+    #modal-pdf * {
+        visibility: visible;
     }
-    
-    #modal-pdf, #modal-pdf * { 
-        visibility: visible; 
-    }
-    
+
+    /* Posiciona o modal para ocupar a página inteira */
     #modal-pdf {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: auto;
-        background: white;
-        margin: 0;
-        padding: 0;
-        display: block !important;
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        z-index: 9999 !important;
     }
-    
-    .no-print { 
-        display: none !important; 
+
+    /* Contêiner interno do PDF */
+    #modal-pdf > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: none !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
-    
+
+    /* Oculta botões de ação dentro do modal durante a impressão */
+    .no-print {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Área de conteúdo do PDF */
     .print-area {
         box-shadow: none !important;
         border: none !important;
         width: 100% !important;
         max-width: 100% !important;
-        padding: 1.5cm !important;
-        min-height: auto !important;
+        padding: 1cm !important;
+        border-radius: 0 !important;
     }
 }
