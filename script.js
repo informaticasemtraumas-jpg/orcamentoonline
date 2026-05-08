@@ -577,10 +577,6 @@ function switchTab(tab) {
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
     if (tab === 'catalogo') carregarCatalogo();
-    if (tab === 'financeiro') {
-        document.getElementById('fin-mes-filtro').valueAsDate = new Date();
-        carregarFinanceiro();
-    }
 }
 
 // --- ORÇAMENTO ---
@@ -722,23 +718,16 @@ function getStatusClasses(status) {
 async function carregarHistorico() {
     if (!currentUser) return;
     
-    // Buscar Orçamentos
-    const { data: orcamentos, error: orcError } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from('orcamentos')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
-        
-    // Buscar Financeiro (para o Dashboard unificado)
-    const { data: financeiro, error: finError } = await supabaseClient
-        .from('financeiro')
-        .select('*')
-        .eq('user_id', currentUser.id);
 
-    if (orcError || finError) return;
+    if (error) return;
     
-    atualizarDashboard(orcamentos, financeiro);
-    renderizarHistorico(orcamentos);
+    atualizarDashboard(data);
+    renderizarHistorico(data);
 }
 
 function renderizarHistorico(data) {
@@ -812,16 +801,7 @@ async function atualizarStatus(id, novoStatus) {
             }
         }
         
-        // Registrar a entrada no financeiro
-        await registrarMovimentacao(
-            'ENTRADA',
-            'Venda de Peças',
-            `Venda: ${orcamento.cliente || 'Consumidor'}`,
-            orcamento.total,
-            id
-        );
-        
-        showToast("Orcamento entregue! Entrada registrada no financeiro.");
+        showToast("Orcamento entregue! Estoque atualizado.");
     }
 
     // 3. Atualizar o status no banco
@@ -836,7 +816,6 @@ async function atualizarStatus(id, novoStatus) {
         showToast(`Status atualizado para "${novoStatus}"!`);
         carregarHistorico();
         carregarCatalogo(); // Recarregar catálogo para ver as novas quantidades
-        carregarFinanceiro(); // Recarregar financeiro para refletir a nova entrada
     }
 }
 
@@ -846,43 +825,42 @@ async function excluirOrcamento(id) {
     if (error) showToast("Erro ao excluir", "error"); else carregarHistorico();
 }
 
-function atualizarDashboard(orcamentos, financeiro) {
-    if (!orcamentos) orcamentos = [];
-    if (!financeiro) financeiro = [];
+function atualizarDashboard(data) {
+    if (!data) return;
 
     const agora = new Date();
     const mesAtual = agora.getMonth();
     const anoAtual = agora.getFullYear();
 
-    // 1. Receitas Reais (Tudo que entrou no financeiro este mês: Serviços + Vendas)
-    const faturamentoMes = financeiro
-        .filter(f => {
-            const d = new Date(f.data_movimentacao + 'T12:00:00');
-            return f.tipo === 'ENTRADA' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    // 1. Receitas (Orçamentos com status "Entregue" no mês atual)
+    const faturamentoMes = data
+        .filter(o => {
+            const d = new Date(o.created_at);
+            return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
         })
-        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     
     const dashReceitas = document.getElementById('dash-receitas');
     if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(faturamentoMes);
 
-    // 2. A Receber (Apenas orçamentos que ainda não foram entregues)
-    const aReceber = orcamentos
+    // 2. A Receber (Orçamentos que ainda não foram entregues)
+    const aReceber = data
         .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     
     const dashReceber = document.getElementById('dash-receber');
     if (dashReceber) dashReceber.innerText = formatadorMoeda.format(aReceber);
 
-    // 3. Total Geral Histórico (Opcional: Soma de todas as entradas do financeiro)
-    const totalGeral = financeiro
-        .filter(f => f.tipo === 'ENTRADA')
-        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    // 3. Total Geral (Soma de todos os orçamentos entregues na história)
+    const totalGeral = data
+        .filter(o => o.status === 'Entregue')
+        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     const dashTotal = document.getElementById('dash-total');
     if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
 
-    // 4. Gráfico de Status (Baseado nos orçamentos de serviço)
+    // 4. Gráfico de Status
     const contagem = {};
-    orcamentos.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
+    data.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
     const labels = Object.keys(contagem);
     const valores = Object.values(contagem);
     const coresGrafico = labels.map(l => {
@@ -977,109 +955,6 @@ function imprimirPDF() { window.print(); }
 
 checkUser();
 
-// ====================== FINANCEIRO ======================
-
-async function carregarFinanceiro() {
-    if (!currentUser) return;
-    
-    const mesFiltro = document.getElementById('fin-mes-filtro').value;
-    const mes = mesFiltro ? new Date(mesFiltro + '-01') : new Date();
-    const mesAtual = mes.getMonth();
-    const anoAtual = mes.getFullYear();
-    
-    const { data, error } = await supabaseClient
-        .from('financeiro')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('data_movimentacao', { ascending: false });
-    
-    if (error) {
-        console.error("Erro ao carregar financeiro:", error);
-        return;
-    }
-    
-    // Filtrar por mês
-    const movimentacoes = (data || []).filter(m => {
-        const d = new Date(m.data_movimentacao);
-        return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-    });
-    
-    renderizarFinanceiro(movimentacoes);
-}
-
-function renderizarFinanceiro(movimentacoes) {
-    const container = document.getElementById('fin-lista-movimentacoes');
-    const vazio = document.getElementById('fin-vazio');
-    
-    if (!movimentacoes || movimentacoes.length === 0) {
-        container.innerHTML = '';
-        vazio.classList.remove('hidden');
-        atualizarResumoFinanceiro([]);
-        return;
-    }
-    
-    vazio.classList.add('hidden');
-    container.innerHTML = movimentacoes.map(m => {
-        const cor = m.tipo === 'ENTRADA' ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
-        const sinal = m.tipo === 'ENTRADA' ? '+' : '-';
-        const data = new Date(m.data_movimentacao).toLocaleDateString('pt-BR');
-        
-        return `
-        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all">
-            <td class="px-6 py-4 text-sm font-bold text-slate-600">${data}</td>
-            <td class="px-6 py-4 text-sm">
-                <span class="inline-block px-3 py-1 ${cor} font-black rounded-lg text-xs">
-                    ${m.tipo}
-                </span>
-            </td>
-            <td class="px-6 py-4 text-sm font-bold text-slate-700">${m.descricao}</td>
-            <td class="px-6 py-4 text-right text-sm font-black ${m.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}">
-                ${sinal} ${formatadorMoeda.format(m.valor)}
-            </td>
-        </tr>`;
-    }).join('');
-    
-    atualizarResumoFinanceiro(movimentacoes);
-    lucide.createIcons();
-}
-
-function atualizarResumoFinanceiro(movimentacoes) {
-    const entradas = movimentacoes
-        .filter(m => m.tipo === 'ENTRADA')
-        .reduce((acc, m) => acc + (parseFloat(m.valor) || 0), 0);
-    
-    const saidas = movimentacoes
-        .filter(m => m.tipo === 'SAIDA')
-        .reduce((acc, m) => acc + (parseFloat(m.valor) || 0), 0);
-    
-    const lucro = entradas - saidas;
-    
-    document.getElementById('fin-entradas').innerText = formatadorMoeda.format(entradas);
-    document.getElementById('fin-saidas').innerText = formatadorMoeda.format(saidas);
-    document.getElementById('fin-lucro').innerText = formatadorMoeda.format(lucro);
-}
-
-async function registrarMovimentacao(tipo, categoria, descricao, valor, referencia_id = null) {
-    if (!currentUser) return;
-    
-    const { error } = await supabaseClient.from('financeiro').insert([{
-        user_id: currentUser.id,
-        tipo,
-        categoria,
-        descricao,
-        valor,
-        referencia_id,
-        data_movimentacao: new Date().toISOString().split('T')[0]
-    }]);
-    
-    if (error) {
-        console.error("Erro ao registrar movimentação:", error);
-        showToast("Erro ao registrar movimentação", "error");
-    } else {
-        carregarFinanceiro();
-    }
-}
-
 let vendaAtual = { peca_id: null, peca_nome: '', preco_unitario: 0 };
 
 function abrirModalVenda(id) {
@@ -1145,14 +1020,9 @@ async function confirmarVenda() {
         
         if (updateError) throw updateError;
         
-        // 2. Registrar a entrada no financeiro
-        const descricao = `${quantidade}x ${peca.nome} | Cliente: ${cliente} | ${pagamento}${desconto > 0 ? ` | Desconto: R$ ${desconto.toFixed(2)}` : ''}`;
-        await registrarMovimentacao('ENTRADA', 'Venda de Peça', descricao, valorTotal, vendaAtual.peca_id);
-        
         showToast(`Venda de ${quantidade} peça(s) registrada! Total: ${formatadorMoeda.format(valorTotal)}`);
         fecharModalVenda();
         carregarCatalogo();
-        carregarFinanceiro();
     } catch (err) {
         console.error(err);
         showToast("Erro ao processar venda", "error");
@@ -1247,11 +1117,9 @@ async function salvarCompraMaterial() {
         descricao: fornecedor ? `Última compra: ${fornecedor}` : material.descricao
     }).eq('id', materialId);
     if (matError) return showToast("Erro ao atualizar estoque.", "error");
-    await registrarMovimentacao('SAIDA', 'Compra de Materiais', `Compra: ${material.nome}${fornecedor ? ' (' + fornecedor + ')' : ''}`, valorTotal, materialId);
     showToast("Compra registrada e estoque atualizado!");
     fecharModalCompra();
     carregarMateriais();
-    carregarFinanceiro();
 }
 
 // --- CALCULADORA DE ÁREA ---
