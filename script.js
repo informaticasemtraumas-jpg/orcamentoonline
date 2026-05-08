@@ -561,18 +561,30 @@ async function handleSignUp() {
 async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-financeiro', 'view-config'];
-    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-financeiro', 'tab-config'];
-    views.forEach(v => document.getElementById(v).classList.add('hidden'));
+    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-config'];
+    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-config'];
+    
+    views.forEach(v => {
+        const el = document.getElementById(v);
+        if (el) el.classList.add('hidden');
+    });
+    
     tabs.forEach(t => {
         const el = document.getElementById(t);
-        el.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-        el.classList.add('text-slate-500', 'hover:bg-white/50');
+        if (el) {
+            el.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+            el.classList.add('text-slate-500', 'hover:bg-white/50');
+        }
     });
-    document.getElementById(`view-${tab}`).classList.remove('hidden');
-    const active = document.getElementById(`tab-${tab}`);
-    active.classList.remove('text-slate-500', 'hover:bg-white/50');
-    active.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+    
+    const targetView = document.getElementById(`view-${tab}`);
+    if (targetView) targetView.classList.remove('hidden');
+    
+    const activeTab = document.getElementById(`tab-${tab}`);
+    if (activeTab) {
+        activeTab.classList.remove('text-slate-500', 'hover:bg-white/50');
+        activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+    }
     
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
