@@ -247,6 +247,9 @@ function renderizarCatalogo() {
                     <button onclick="produzirPeca(${p.id})" class="px-3 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1" title="Registrar produção">
                         <i data-lucide="plus" class="w-3 h-3"></i> PRODUZIR
                     </button>
+                    <button onclick="venderPeca(${p.id})" class="px-3 py-2 bg-indigo-600 text-white text-xs font-black rounded-lg hover:bg-indigo-700 transition-all shadow-sm flex items-center gap-1" title="Vender peça pronta">
+                        <i data-lucide="dollar-sign" class="w-3 h-3"></i> VENDER
+                    </button>
                     <button onclick="ajustarSaldoPeca(${p.id})" class="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all" title="Ajustar saldo manual">
                         <i data-lucide="edit" class="w-4 h-4"></i>
                     </button>
@@ -829,7 +832,8 @@ function atualizarDashboard(data) {
 
     // Total geral
     const totalGeral = data.reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    document.getElementById('dash-total').innerText = formatadorMoeda.format(totalGeral);
+    const dashTotal = document.getElementById('dash-total');
+    if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
 
     // Faturamento do mês atual (status "Entregue" no mês corrente)
     const agora = new Date();
@@ -841,13 +845,17 @@ function atualizarDashboard(data) {
             return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
         })
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    document.getElementById('dash-mes').innerText = formatadorMoeda.format(faturamentoMes);
+    
+    const dashReceitas = document.getElementById('dash-receitas');
+    if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(faturamentoMes);
 
     // A receber: status Pendente, Aguardando Aprovação ou Em Produção
     const aReceber = data
         .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    document.getElementById('dash-receber').innerText = formatadorMoeda.format(aReceber);
+    
+    const dashReceber = document.getElementById('dash-receber');
+    if (dashReceber) dashReceber.innerText = formatadorMoeda.format(aReceber);
 
     // Gráfico de status
     const contagem = {};
