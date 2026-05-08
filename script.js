@@ -244,8 +244,11 @@ function renderizarCatalogo() {
             <td class="px-6 py-4 text-right text-sm font-black text-indigo-600">${formatadorMoeda.format(p.preco_venda)}</td>
             <td class="px-6 py-4 text-center">
                 <div class="flex gap-2 justify-center">
-                    <button onclick="produzirPeca(${p.id})" class="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1">
+                    <button onclick="produzirPeca(${p.id})" class="px-3 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1" title="Registrar produção">
                         <i data-lucide="plus" class="w-3 h-3"></i> PRODUZIR
+                    </button>
+                    <button onclick="ajustarSaldoPeca(${p.id})" class="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all" title="Ajustar saldo manual">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
                     </button>
                     <button onclick="excluirPeca(${p.id})" class="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all" title="Excluir">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -399,6 +402,29 @@ async function salvarPecaCompleta() {
         showToast("Peça salva no catálogo!"); 
         fecharModalPeca(); 
         carregarCatalogo(); 
+    }
+}
+
+async function ajustarSaldoPeca(id) {
+    const peca = pecasCatalogo.find(p => p.id === id);
+    if (!peca) return;
+
+    const saldoAtual = parseInt(peca.quantidade) || 0;
+    const novoSaldo = parseInt(prompt(`Ajustar saldo de "${peca.nome}"\n\nSaldo atual: ${saldoAtual} unidades\n\nDigite o novo saldo:`, saldoAtual));
+    
+    if (novoSaldo === null || isNaN(novoSaldo)) return;
+    if (novoSaldo < 0) return showToast("O saldo não pode ser negativo.", "error");
+
+    const { error } = await supabaseClient
+        .from('pecas')
+        .update({ quantidade: novoSaldo })
+        .eq('id', id);
+
+    if (error) {
+        showToast("Erro ao atualizar saldo.", "error");
+    } else {
+        showToast(`Saldo de "${peca.nome}" ajustado para ${novoSaldo} unidades!`);
+        carregarCatalogo();
     }
 }
 
