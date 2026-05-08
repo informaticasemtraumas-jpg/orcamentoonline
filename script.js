@@ -558,8 +558,8 @@ async function handleSignUp() {
 async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-config'];
-    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-config'];
+    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-financeiro', 'view-config'];
+    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-financeiro', 'tab-config'];
     views.forEach(v => document.getElementById(v).classList.add('hidden'));
     tabs.forEach(t => {
         const el = document.getElementById(t);
@@ -574,6 +574,10 @@ function switchTab(tab) {
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
     if (tab === 'catalogo') carregarCatalogo();
+    if (tab === 'financeiro') {
+        document.getElementById('fin-mes-filtro').valueAsDate = new Date();
+        carregarFinanceiro();
+    }
 }
 
 // --- ORÇAMENTO ---
@@ -786,7 +790,17 @@ async function atualizarStatus(id, novoStatus) {
                     .eq('id', peca.id);
             }
         }
-        showToast("Estoque de peças atualizado pela entrega!");
+        
+        // Registrar a entrada no financeiro
+        await registrarMovimentacao(
+            'ENTRADA',
+            'Venda de Orcamento',
+            `Orcamento para ${orcamento.cliente || 'Cliente'}`,
+            orcamento.total,
+            id
+        );
+        
+        showToast("Orcamento entregue! Entrada registrada no financeiro.");
     }
 
     // 3. Atualizar o status no banco
@@ -929,5 +943,149 @@ function carregarConfig() {
 
 function fecharModalPDF() { document.getElementById('modal-pdf').classList.add('hidden'); }
 function imprimirPDF() { window.print(); }
+
+checkUser();
+
+// ====================== FINANCEIRO ======================
+
+async function carregarFinanceiro() {
+    if (!currentUser) return;
+    
+    const mesFiltro = document.getElementById('fin-mes-filtro').value;
+    const mes = mesFiltro ? new Date(mesFiltro + '-01') : new Date();
+    const mesAtual = mes.getMonth();
+    const anoAtual = mes.getFullYear();
+    
+    const { data, error } = await supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('data_movimentacao', { ascending: false });
+    
+    if (error) {
+        console.error("Erro ao carregar financeiro:", error);
+        return;
+    }
+    
+    // Filtrar por mês
+    const movimentacoes = (data || []).filter(m => {
+        const d = new Date(m.data_movimentacao);
+        return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    });
+    
+    renderizarFinanceiro(movimentacoes);
+}
+
+function renderizarFinanceiro(movimentacoes) {
+    const container = document.getElementById('fin-lista-movimentacoes');
+    const vazio = document.getElementById('fin-vazio');
+    
+    if (!movimentacoes || movimentacoes.length === 0) {
+        container.innerHTML = '';
+        vazio.classList.remove('hidden');
+        atualizarResumoFinanceiro([]);
+        return;
+    }
+    
+    vazio.classList.add('hidden');
+    container.innerHTML = movimentacoes.map(m => {
+        const cor = m.tipo === 'ENTRADA' ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
+        const sinal = m.tipo === 'ENTRADA' ? '+' : '-';
+        const data = new Date(m.data_movimentacao).toLocaleDateString('pt-BR');
+        
+        return `
+        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+            <td class="px-6 py-4 text-sm font-bold text-slate-600">${data}</td>
+            <td class="px-6 py-4 text-sm">
+                <span class="inline-block px-3 py-1 ${cor} font-black rounded-lg text-xs">
+                    ${m.tipo}
+                </span>
+            </td>
+            <td class="px-6 py-4 text-sm font-bold text-slate-700">${m.descricao}</td>
+            <td class="px-6 py-4 text-right text-sm font-black ${m.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}">
+                ${sinal} ${formatadorMoeda.format(m.valor)}
+            </td>
+        </tr>`;
+    }).join('');
+    
+    atualizarResumoFinanceiro(movimentacoes);
+    lucide.createIcons();
+}
+
+function atualizarResumoFinanceiro(movimentacoes) {
+    const entradas = movimentacoes
+        .filter(m => m.tipo === 'ENTRADA')
+        .reduce((acc, m) => acc + (parseFloat(m.valor) || 0), 0);
+    
+    const saidas = movimentacoes
+        .filter(m => m.tipo === 'SAIDA')
+        .reduce((acc, m) => acc + (parseFloat(m.valor) || 0), 0);
+    
+    const lucro = entradas - saidas;
+    
+    document.getElementById('fin-entradas').innerText = formatadorMoeda.format(entradas);
+    document.getElementById('fin-saidas').innerText = formatadorMoeda.format(saidas);
+    document.getElementById('fin-lucro').innerText = formatadorMoeda.format(lucro);
+}
+
+async function registrarMovimentacao(tipo, categoria, descricao, valor, referencia_id = null) {
+    if (!currentUser) return;
+    
+    const { error } = await supabaseClient.from('financeiro').insert([{
+        user_id: currentUser.id,
+        tipo,
+        categoria,
+        descricao,
+        valor,
+        referencia_id,
+        data_movimentacao: new Date().toISOString().split('T')[0]
+    }]);
+    
+    if (error) {
+        console.error("Erro ao registrar movimentação:", error);
+        showToast("Erro ao registrar movimentação", "error");
+    } else {
+        carregarFinanceiro();
+    }
+}
+
+async function venderPeca(id) {
+    const peca = pecasCatalogo.find(p => p.id === id);
+    if (!peca) return;
+    
+    const qtdVender = parseInt(prompt(`Quantas unidades de "${peca.nome}" você vender?`, "1")) || 0;
+    if (qtdVender <= 0) return;
+    
+    const qtdDisponivel = parseInt(peca.quantidade) || 0;
+    if (qtdDisponivel < qtdVender) {
+        return showToast(`Estoque insuficiente. Disponível: ${qtdDisponivel}`, "error");
+    }
+    
+    const valorTotal = qtdVender * parseFloat(peca.preco_venda);
+    
+    try {
+        // 1. Descontar do estoque de peças prontas
+        const novaQtd = qtdDisponivel - qtdVender;
+        const { error: updateError } = await supabaseClient
+            .from('pecas')
+            .update({ quantidade: novaQtd })
+            .eq('id', id);
+        
+        if (updateError) throw updateError;
+        
+        // 2. Registrar a entrada no financeiro
+        await registrarMovimentacao('ENTRADA', 'Venda de Peça', `${qtdVender}x ${peca.nome}`, valorTotal, id);
+        
+        showToast(`Venda de ${qtdVender} peça(s) registrada! Entrada: ${formatadorMoeda.format(valorTotal)}`);
+        carregarCatalogo();
+    } catch (err) {
+        console.error(err);
+        showToast("Erro ao processar venda", "error");
+    }
+}
+
+function gerarRelatorioPDF() {
+    showToast("Relatório em desenvolvimento", "error");
+}
 
 checkUser();
