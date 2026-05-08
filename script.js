@@ -796,7 +796,7 @@ async function atualizarStatus(id, novoStatus) {
         
         // Registrar a entrada no financeiro
         await registrarMovimentacao(
-            'entrada',
+            'ENTRADA',
             'Venda de Peças',
             `Venda: ${orcamento.cliente || 'Consumidor'}`,
             orcamento.total,
@@ -818,6 +818,7 @@ async function atualizarStatus(id, novoStatus) {
         showToast(`Status atualizado para "${novoStatus}"!`);
         carregarHistorico();
         carregarCatalogo(); // Recarregar catálogo para ver as novas quantidades
+        carregarFinanceiro(); // Recarregar financeiro para refletir a nova entrada
     }
 }
 

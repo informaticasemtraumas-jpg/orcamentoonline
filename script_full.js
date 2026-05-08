@@ -198,7 +198,7 @@ async function salvarCompraMaterial() {
         .from('financeiro')
         .insert([{
             user_id: currentUser.id,
-            tipo: 'saida',
+            tipo: 'SAIDA',
             valor: valorTotal,
             descricao: `Compra: ${material.nome}${fornecedor ? ' (' + fornecedor + ')' : ''}`,
             categoria: 'Compra de Materiais',
@@ -397,6 +397,7 @@ async function salvarPecaCompleta() {
         showToast("Peça salva no catálogo!");
         fecharModalPeca();
         carregarCatalogo();
+        carregarHistorico(); // Recarregar histórico e financeiro
     }
 }
 
@@ -701,8 +702,8 @@ function renderizarFluxoFinanceiro(data) {
     container.innerHTML = lista.map(f => `
         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center ${f.tipo === 'entrada' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
-                    <i data-lucide="${f.tipo === 'entrada' ? 'trending-up' : 'trending-down'}" class="w-4 h-4"></i>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center ${f.tipo === 'ENTRADA' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                    <i data-lucide="${f.tipo === 'ENTRADA' ? 'trending-up' : 'trending-down'}" class="w-4 h-4"></i>
                 </div>
                 <div>
                     <p class="text-xs font-black text-slate-800 leading-tight">${f.descricao}</p>
@@ -710,8 +711,8 @@ function renderizarFluxoFinanceiro(data) {
                 </div>
             </div>
             <div class="text-right">
-                <p class="text-xs font-black ${f.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}">
-                    ${f.tipo === 'entrada' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
+                <p class="text-xs font-black ${f.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-500'}">
+                    ${f.tipo === 'ENTRADA' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
                 </p>
                 <p class="text-[8px] text-slate-400 font-bold uppercase">${f.categoria}</p>
             </div>
@@ -807,7 +808,7 @@ async function atualizarStatus(id, novoStatus) {
             .from('financeiro')
             .insert([{
                 user_id: currentUser.id,
-                tipo: 'entrada',
+                tipo: 'ENTRADA',
                 valor: orcamento.total,
                 descricao: `Venda: ${orcamento.cliente || 'Consumidor'}`,
                 categoria: 'Venda de Peças',
@@ -854,8 +855,8 @@ function atualizarDashboard(orcamentos, financeiro) {
         return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
     });
 
-    const receitas = finMes.filter(f => f.tipo === 'entrada').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
-    const despesas = finMes.filter(f => f.tipo === 'saida').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const receitas = finMes.filter(f => f.tipo === 'ENTRADA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const despesas = finMes.filter(f => f.tipo === 'SAIDA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     const lucro = receitas - despesas;
 
     document.getElementById('dash-receitas').innerText = formatadorMoeda.format(receitas);
@@ -931,8 +932,8 @@ async function gerarRelatorioMensal() {
 
     if (finMes.length === 0) return showToast("Não há movimentações no mês selecionado.", "error");
 
-    const receitas = finMes.filter(f => f.tipo === 'entrada').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
-    const despesas = finMes.filter(f => f.tipo === 'saida').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const receitas = finMes.filter(f => f.tipo === 'ENTRADA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const despesas = finMes.filter(f => f.tipo === 'SAIDA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     const lucro = receitas - despesas;
 
     document.getElementById('rel-header-nome').innerText = document.getElementById('atelie-nome').value;
@@ -948,8 +949,8 @@ async function gerarRelatorioMensal() {
             <td class="py-3 px-2 text-xs font-bold text-slate-600">${new Date(f.data_movimentacao + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
             <td class="py-3 px-2 text-xs font-black text-slate-800">${f.descricao}</td>
             <td class="py-3 px-2 text-[10px] font-bold text-slate-400 uppercase">${f.categoria}</td>
-            <td class="py-3 px-2 text-xs font-black text-right ${f.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}">
-                ${f.tipo === 'entrada' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
+            <td class="py-3 px-2 text-xs font-black text-right ${f.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-500'}">
+                ${f.tipo === 'ENTRADA' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
             </td>
         </tr>
     `).join('');
