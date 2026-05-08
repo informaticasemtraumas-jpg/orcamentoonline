@@ -796,9 +796,9 @@ async function atualizarStatus(id, novoStatus) {
         
         // Registrar a entrada no financeiro
         await registrarMovimentacao(
-            'ENTRADA',
-            'Venda de Orcamento',
-            `Orcamento para ${orcamento.cliente || 'Cliente'}`,
+            'entrada',
+            'Venda de Peças',
+            `Venda: ${orcamento.cliente || 'Consumidor'}`,
             orcamento.total,
             id
         );
