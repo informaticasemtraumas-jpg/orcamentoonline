@@ -713,14 +713,24 @@ function getStatusClasses(status) {
 
 async function carregarHistorico() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient
+    
+    // Buscar Orçamentos
+    const { data: orcamentos, error: orcError } = await supabaseClient
         .from('orcamentos')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
-    if (error) return;
-    atualizarDashboard(data);
-    renderizarHistorico(data);
+        
+    // Buscar Financeiro (para o Dashboard unificado)
+    const { data: financeiro, error: finError } = await supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id);
+
+    if (orcError || finError) return;
+    
+    atualizarDashboard(orcamentos, financeiro);
+    renderizarHistorico(orcamentos);
 }
 
 function renderizarHistorico(data) {
@@ -828,39 +838,42 @@ async function excluirOrcamento(id) {
     if (error) showToast("Erro ao excluir", "error"); else carregarHistorico();
 }
 
-function atualizarDashboard(data) {
-    if (!data) return;
+function atualizarDashboard(orcamentos, financeiro) {
+    if (!orcamentos || !financeiro) return;
 
-    // Total geral
-    const totalGeral = data.reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    const dashTotal = document.getElementById('dash-total');
-    if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
-
-    // Faturamento do mês atual (status "Entregue" no mês corrente)
     const agora = new Date();
     const mesAtual = agora.getMonth();
     const anoAtual = agora.getFullYear();
-    const faturamentoMes = data
-        .filter(o => {
-            const d = new Date(o.created_at);
-            return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+
+    // 1. Receitas Reais (Tudo que entrou no financeiro este mês: Serviços + Vendas)
+    const faturamentoMes = financeiro
+        .filter(f => {
+            const d = new Date(f.data_movimentacao + 'T12:00:00');
+            return f.tipo === 'ENTRADA' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
         })
-        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     
     const dashReceitas = document.getElementById('dash-receitas');
     if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(faturamentoMes);
 
-    // A receber: status Pendente, Aguardando Aprovação ou Em Produção
-    const aReceber = data
+    // 2. A Receber (Apenas orçamentos que ainda não foram entregues)
+    const aReceber = orcamentos
         .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     
     const dashReceber = document.getElementById('dash-receber');
     if (dashReceber) dashReceber.innerText = formatadorMoeda.format(aReceber);
 
-    // Gráfico de status
+    // 3. Total Geral Histórico (Opcional: Soma de todas as entradas do financeiro)
+    const totalGeral = financeiro
+        .filter(f => f.tipo === 'ENTRADA')
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const dashTotal = document.getElementById('dash-total');
+    if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
+
+    // 4. Gráfico de Status (Baseado nos orçamentos de serviço)
     const contagem = {};
-    data.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
+    orcamentos.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
     const labels = Object.keys(contagem);
     const valores = Object.values(contagem);
     const coresGrafico = labels.map(l => {
