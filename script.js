@@ -32,8 +32,10 @@ async function carregarMateriais() {
 }
 
 function renderizarTabelaEstoque() {
-    const container = document.getElementById('corpo-estoque');
-    const filtro = document.getElementById('filtro-estoque').value.toLowerCase();
+    const container = document.getElementById('lista-estoque');
+    const filtroInput = document.getElementById('filtro-estoque');
+    if (!container || !filtroInput) return;
+    const filtro = filtroInput.value.toLowerCase();
     
     let filtrados = materiais.filter(m => m.nome.toLowerCase().includes(filtro));
     
@@ -125,14 +127,22 @@ function calcularPrecoUnitarioMaterial() {
     document.getElementById('material-preco-unitario').innerText = formatadorMoeda.format(unit);
 }
 
-async function salvarMaterial() {
+async function salvarMaterialModal() {
     const id = document.getElementById('material-edit-id').value;
+    const qtd = parseFloat(document.getElementById('material-quantidade').value) || 0;
+    const precoTotal = parseFloat(document.getElementById('material-preco-total').value) || 0;
+    const precoUnitarioInput = parseFloat(document.getElementById('material-preco-unitario').value) || 0;
+    
+    // Se o usuário digitou o preço unitário diretamente, usamos ele. 
+    // Caso contrário, calculamos a partir do total.
+    const precoUnitario = precoUnitarioInput > 0 ? precoUnitarioInput : (qtd > 0 ? precoTotal / qtd : 0);
+
     const material = {
         user_id: currentUser.id,
         nome: document.getElementById('material-nome').value,
         unidade: document.getElementById('material-unidade').value,
-        quantidade: parseFloat(document.getElementById('material-quantidade').value) || 0,
-        preco_unitario: parseFloat(document.getElementById('material-preco-total').value) / (parseFloat(document.getElementById('material-quantidade').value) || 1),
+        quantidade: qtd,
+        preco_unitario: precoUnitario,
         descricao: document.getElementById('material-descricao').value
     };
 
@@ -145,6 +155,10 @@ async function salvarMaterial() {
         if (error) showToast("Erro ao cadastrar", "error"); 
         else { showToast("Material cadastrado!"); fecharModalMaterial(); carregarMateriais(); }
     }
+}
+
+function limparPrecoTotal() {
+    document.getElementById('material-preco-total').value = "";
 }
 
 async function excluirMaterial(id) {
@@ -238,29 +252,31 @@ async function carregarCatalogo() {
 
 function renderizarCatalogo() {
     const container = document.getElementById('lista-catalogo');
-    const filtro = document.getElementById('filtro-catalogo').value.toLowerCase();
+    const filtroInput = document.getElementById('filtro-catalogo');
+    if (!container) return;
+    const filtro = filtroInput ? filtroInput.value.toLowerCase() : "";
     const filtrados = pecasCatalogo.filter(p => p.nome.toLowerCase().includes(filtro));
 
+    if (filtrados.length === 0) {
+        container.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-slate-400 font-bold">Nenhuma peça encontrada</td></tr>';
+        return;
+    }
+
     container.innerHTML = filtrados.map(p => `
-        <div class="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="font-black text-slate-800 text-lg group-hover:text-indigo-600 transition-all">${p.nome}</h3>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ficha Técnica</p>
-                </div>
-                <div class="flex gap-1">
-                    <button onclick="abrirModalPeca(${p.id})" class="p-2 text-slate-300 hover:text-indigo-600 transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                    <button onclick="excluirPeca(${p.id})" class="p-2 text-slate-300 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </div>
-            </div>
-            <div class="flex justify-between items-end pt-4 border-t border-slate-50">
-                <div>
-                    <p class="text-[9px] font-black text-slate-400 uppercase">Preço Sugerido</p>
-                    <p class="text-2xl font-black text-indigo-600">${formatadorMoeda.format(p.preco_venda)}</p>
-                </div>
-                <button onclick="adicionarAoOrcamento(${p.id})" class="px-4 py-2 bg-slate-800 text-white text-[10px] font-black rounded-xl hover:bg-indigo-600 transition-all uppercase">Adicionar</button>
-            </div>
-        </div>
+        <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+            <td class="py-4 px-6">
+                <p class="font-black text-slate-800">${p.nome}</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Ficha Técnica</p>
+            </td>
+            <td class="py-4 px-6 text-center font-bold text-slate-600">${p.tempo_producao || 0} min</td>
+            <td class="py-4 px-6 text-right font-bold text-slate-600">${p.quantidade || 0} un</td>
+            <td class="py-4 px-6 text-right font-black text-indigo-600">${formatadorMoeda.format(p.preco_venda)}</td>
+            <td class="py-4 px-6 text-center space-x-2">
+                <button onclick="adicionarAoOrcamento(${p.id})" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Adicionar ao Orçamento"><i data-lucide="plus-circle" class="w-5 h-5"></i></button>
+                <button onclick="abrirModalPeca(${p.id})" class="p-2 text-slate-300 hover:text-indigo-600 transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                <button onclick="excluirPeca(${p.id})" class="p-2 text-slate-300 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </td>
+        </tr>
     `).join('');
     lucide.createIcons();
 }
