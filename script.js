@@ -15,6 +15,8 @@ let complexidadeNome = "Padrão";
 let currentUser = null;
 let statusChart = null;
 let materiais = [];
+let paginaAtualEstoque = 1;
+const itensPorPaginaEstoque = 10;
 
 // Configurações Financeiras (Padrão)
 let configFinanceira = {
@@ -62,6 +64,7 @@ function atualizarSelectMateriais() {
 function renderizarListaEstoque(listaFiltrada = null) {
     const container = document.getElementById('lista-estoque');
     const vazio = document.getElementById('estoque-vazio');
+    const paginacao = document.getElementById('paginacao-estoque');
     if (!container) return;
 
     const lista = listaFiltrada || materiais;
@@ -69,17 +72,30 @@ function renderizarListaEstoque(listaFiltrada = null) {
     if (lista.length === 0) {
         container.innerHTML = '';
         vazio.classList.remove('hidden');
+        if (paginacao) paginacao.classList.add('hidden');
         return;
     }
 
     vazio.classList.add('hidden');
-    container.innerHTML = lista.map(item => {
+    if (paginacao) paginacao.classList.remove('hidden');
+
+    // Lógica de Paginação
+    const totalItens = lista.length;
+    const totalPaginas = Math.ceil(totalItens / itensPorPaginaEstoque);
+    
+    // Garantir que a página atual é válida
+    if (paginaAtualEstoque > totalPaginas) paginaAtualEstoque = Math.max(1, totalPaginas);
+    
+    const inicio = (paginaAtualEstoque - 1) * itensPorPaginaEstoque;
+    const fim = inicio + itensPorPaginaEstoque;
+    const itensExibidos = lista.slice(inicio, fim);
+
+    container.innerHTML = itensExibidos.map(item => {
         const preco = parseFloat(item.preco_unitario) || 0;
         const qtd = parseFloat(item.quantidade) || 0;
         const totalEstoque = (qtd * preco).toFixed(2);
         const qtdFormatada = parseFloat(qtd.toFixed(4));
         
-        // Cor de alerta se estoque baixo (menos de 5 unidades ou 1 metro)
         const alertaEstoque = qtd < 5 ? 'bg-orange-50' : '';
         
         return `
@@ -110,10 +126,55 @@ function renderizarListaEstoque(listaFiltrada = null) {
             </td>
         </tr>`;
     }).join('');
+
+    renderizarControlesPaginacaoEstoque(totalItens, totalPaginas);
     lucide.createIcons();
 }
 
+function renderizarControlesPaginacaoEstoque(totalItens, totalPaginas) {
+    const info = document.getElementById('info-paginacao-estoque');
+    const numeros = document.getElementById('numeros-paginacao-estoque');
+    const btnPrev = document.getElementById('btn-prev-estoque');
+    const btnNext = document.getElementById('btn-next-estoque');
+
+    if (!info || !numeros) return;
+
+    const inicio = (paginaAtualEstoque - 1) * itensPorPaginaEstoque + 1;
+    const fim = Math.min(paginaAtualEstoque * itensPorPaginaEstoque, totalItens);
+
+    info.innerText = `Mostrando ${totalItens > 0 ? inicio : 0}-${fim} de ${totalItens} materiais`;
+
+    btnPrev.disabled = paginaAtualEstoque === 1;
+    btnNext.disabled = paginaAtualEstoque === totalPaginas || totalPaginas === 0;
+
+    let htmlNumeros = '';
+    for (let i = 1; i <= totalPaginas; i++) {
+        if (i === 1 || i === totalPaginas || (i >= paginaAtualEstoque - 1 && i <= paginaAtualEstoque + 1)) {
+            htmlNumeros += `
+                <button onclick="irParaPaginaEstoque(${i})" class="w-10 h-10 rounded-xl font-bold text-sm transition-all ${i === paginaAtualEstoque ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}">
+                    ${i}
+                </button>`;
+        } else if (i === paginaAtualEstoque - 2 || i === paginaAtualEstoque + 2) {
+            htmlNumeros += `<span class="w-10 h-10 flex items-center justify-center text-slate-400">...</span>`;
+        }
+    }
+    numeros.innerHTML = htmlNumeros;
+}
+
+function mudarPaginaEstoque(delta) {
+    paginaAtualEstoque += delta;
+    renderizarListaEstoque();
+    document.getElementById('view-estoque').scrollIntoView({ behavior: 'smooth' });
+}
+
+function irParaPaginaEstoque(pagina) {
+    paginaAtualEstoque = pagina;
+    renderizarListaEstoque();
+    document.getElementById('view-estoque').scrollIntoView({ behavior: 'smooth' });
+}
+
 function filtrarEstoque() {
+    paginaAtualEstoque = 1; // Volta para a primeira página ao filtrar
     const termo = document.getElementById('filtro-estoque').value.toLowerCase().trim();
     renderizarListaEstoque(termo ? materiais.filter(m => m.nome.toLowerCase().includes(termo)) : null);
 }
