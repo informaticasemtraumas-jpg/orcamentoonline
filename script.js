@@ -61,56 +61,54 @@ function atualizarSelectMateriais() {
 
 function renderizarListaEstoque(listaFiltrada = null) {
     const container = document.getElementById('lista-estoque');
+    const vazio = document.getElementById('estoque-vazio');
     if (!container) return;
 
     const lista = listaFiltrada || materiais;
 
     if (lista.length === 0) {
-        container.innerHTML = `
-            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-3xl py-16 text-center col-span-full">
-                <i data-lucide="package" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i>
-                <p class="text-slate-500 font-bold">Nenhum material cadastrado ainda</p>
-                <p class="text-slate-400 text-sm mt-1">Clique em "Novo Material" para começar</p>
-            </div>`;
-        lucide.createIcons();
+        container.innerHTML = '';
+        vazio.classList.remove('hidden');
         return;
     }
 
+    vazio.classList.add('hidden');
     container.innerHTML = lista.map(item => {
         const preco = parseFloat(item.preco_unitario) || 0;
         const qtd = parseFloat(item.quantidade) || 0;
+        const totalEstoque = (qtd * preco).toFixed(2);
+        const qtdFormatada = parseFloat(qtd.toFixed(4));
+        
+        // Cor de alerta se estoque baixo (menos de 5 unidades ou 1 metro)
+        const alertaEstoque = qtd < 5 ? 'bg-orange-50' : '';
+        
         return `
-        <div class="bg-white border border-slate-100 rounded-3xl p-6 hover:shadow-md transition-all">
-            <div class="flex justify-between">
-                <div class="flex-1">
-                    <h4 class="font-bold text-lg text-slate-800">${item.nome}</h4>
-                    ${item.descricao ? `<p class="text-sm text-slate-500 mt-1 line-clamp-2">${item.descricao}</p>` : ''}
-                </div>
-                <div class="text-right">
-                    <span class="inline-block px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-2xl text-sm">
-                        ${parseFloat(qtd.toFixed(4))} ${item.unidade}
-                    </span>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mt-6">
+        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all ${alertaEstoque}">
+            <td class="px-6 py-4 text-sm font-bold text-slate-800">
                 <div>
-                    <p class="text-xs text-slate-500">Preço unitário</p>
-                    <p class="text-2xl font-bold text-slate-700">R$ ${preco.toFixed(2)}</p>
+                    <p class="font-black">${item.nome}</p>
+                    ${item.descricao ? `<p class="text-xs text-slate-400 mt-1">${item.descricao}</p>` : ''}
                 </div>
-                <div class="text-right">
-                    <p class="text-xs text-slate-500">Valor total em estoque</p>
-                    <p class="text-2xl font-bold text-emerald-600">R$ ${(qtd * preco).toFixed(2)}</p>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-600 font-bold">${item.unidade}</td>
+            <td class="px-6 py-4 text-right">
+                <span class="inline-block px-3 py-1 ${qtd < 5 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'} font-bold rounded-lg text-sm">
+                    ${qtdFormatada}
+                </span>
+            </td>
+            <td class="px-6 py-4 text-right text-sm font-bold text-slate-700">R$ ${preco.toFixed(2)}</td>
+            <td class="px-6 py-4 text-right text-sm font-black text-emerald-600">R$ ${totalEstoque}</td>
+            <td class="px-6 py-4 text-center">
+                <div class="flex gap-2 justify-center">
+                    <button onclick="abrirModalEditarMaterial(${item.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-all" title="Editar">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="excluirMaterial(${item.id})" class="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all" title="Excluir">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
                 </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <button onclick="abrirModalEditarMaterial(${item.id})" class="flex-1 py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-2xl transition-all text-xs flex items-center justify-center gap-1">
-                    <i data-lucide="pencil" class="w-4 h-4"></i> Editar
-                </button>
-                <button onclick="excluirMaterial(${item.id})" class="px-5 py-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl transition-all">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                </button>
-            </div>
-        </div>`;
+            </td>
+        </tr>`;
     }).join('');
     lucide.createIcons();
 }
