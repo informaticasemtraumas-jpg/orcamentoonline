@@ -442,6 +442,23 @@ function abrirCalculadoraArea() {
     document.getElementById('mini-altura').value = '';
     document.getElementById('mini-resultado').innerText = '0,0000 m²';
     document.getElementById('modal-calc-area').classList.remove('hidden');
+    document.getElementById('calc-origem').value = 'peca';
+    
+    const calc = () => {
+        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    };
+    document.getElementById('mini-largura').oninput = calc;
+    document.getElementById('mini-altura').oninput = calc;
+}
+
+function abrirCalculadoraAreaMaterial() {
+    document.getElementById('mini-largura').value = '';
+    document.getElementById('mini-altura').value = '';
+    document.getElementById('mini-resultado').innerText = '0,0000 m²';
+    document.getElementById('modal-calc-area').classList.remove('hidden');
+    document.getElementById('calc-origem').value = 'material';
     
     const calc = () => {
         const l = parseFloat(document.getElementById('mini-largura').value) || 0;
@@ -457,7 +474,15 @@ function fecharCalculadoraArea() { document.getElementById('modal-calc-area').cl
 function aplicarResultadoArea() {
     const l = parseFloat(document.getElementById('mini-largura').value) || 0;
     const a = parseFloat(document.getElementById('mini-altura').value) || 0;
-    document.getElementById('peca-material-qtd').value = ((l * a) / 10000).toFixed(4);
+    const resultado = ((l * a) / 10000).toFixed(4);
+    const origem = document.getElementById('calc-origem').value || 'peca';
+    
+    if (origem === 'material') {
+        document.getElementById('material-quantidade').value = resultado;
+        calcularPrecoUnitarioMaterial();
+    } else {
+        document.getElementById('peca-material-qtd').value = resultado;
+    }
     fecharCalculadoraArea();
 }
 
