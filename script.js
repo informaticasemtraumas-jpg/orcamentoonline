@@ -220,24 +220,41 @@ async function carregarCatalogo() {
 
 function renderizarCatalogo() {
     const container = document.getElementById('lista-catalogo');
+    const vazio = document.getElementById('catalogo-vazio');
     if (!container) return;
+    
     if (pecasCatalogo.length === 0) {
-        container.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-3xl py-16 text-center col-span-full"><p class="text-slate-500 font-bold">Nenhuma peça no catálogo</p></div>`;
+        container.innerHTML = '';
+        vazio.classList.remove('hidden');
         return;
     }
-    container.innerHTML = pecasCatalogo.map(p => `
-        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-            <h4 class="font-black text-xl text-slate-800">${p.nome}</h4>
-            <div class="flex justify-between mt-4 text-sm font-bold">
-                <span class="text-slate-400 uppercase">Tempo: ${p.tempo_producao} min</span>
-                <span class="text-indigo-600">Venda: ${formatadorMoeda.format(p.preco_venda)}</span>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="produzirPeca(${p.id})" class="flex-[2] py-3 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">PRODUZIR</button>
-                <button onclick="excluirPeca(${p.id})" class="flex-1 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all">Excluir</button>
-            </div>
-        </div>
-    `).join('');
+
+    vazio.classList.add('hidden');
+    container.innerHTML = pecasCatalogo.map(p => {
+        const qtdDisponivel = parseInt(p.quantidade) || 0;
+        return `
+        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+            <td class="px-6 py-4 text-sm font-black text-slate-800">${p.nome}</td>
+            <td class="px-6 py-4 text-center text-sm font-bold text-slate-500">${p.tempo_producao} min</td>
+            <td class="px-6 py-4 text-right">
+                <span class="inline-block px-3 py-1 ${qtdDisponivel > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'} font-bold rounded-lg text-sm">
+                    ${qtdDisponivel} unidades
+                </span>
+            </td>
+            <td class="px-6 py-4 text-right text-sm font-black text-indigo-600">${formatadorMoeda.format(p.preco_venda)}</td>
+            <td class="px-6 py-4 text-center">
+                <div class="flex gap-2 justify-center">
+                    <button onclick="produzirPeca(${p.id})" class="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3 h-3"></i> PRODUZIR
+                    </button>
+                    <button onclick="excluirPeca(${p.id})" class="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all" title="Excluir">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+    lucide.createIcons();
 }
 
 async function produzirPeca(id) {
@@ -262,9 +279,10 @@ async function produzirPeca(id) {
         }
     }
 
-    if (!confirm(`Confirmar a produção de ${qtdProduzir} unidades? Isso descontará os materiais do estoque.`)) return;
+    if (!confirm(`Confirmar a produção de ${qtdProduzir} unidades? Isso descontará os materiais do estoque e aumentará o saldo de peças prontas.`)) return;
 
     try {
+        // 1. Descontar materiais do estoque
         for (const item of composicao) {
             const material = materiais.find(m => m.id === item.material_id);
             const novaQtd = material.quantidade - (item.quantidade_usada * qtdProduzir);
@@ -274,11 +292,22 @@ async function produzirPeca(id) {
                 .eq('id', item.material_id);
             if (updateError) throw updateError;
         }
-        showToast(`Produção de ${qtdProduzir} peças registrada! Estoque atualizado.`);
+
+        // 2. Aumentar o saldo de peças prontas
+        const novaQtdPeca = (parseInt(peca.quantidade) || 0) + qtdProduzir;
+        const { error: pecaUpdateError } = await supabaseClient
+            .from('pecas')
+            .update({ quantidade: novaQtdPeca })
+            .eq('id', id);
+        
+        if (pecaUpdateError) throw pecaUpdateError;
+
+        showToast(`Produção de ${qtdProduzir} peças registrada! Estoque e catálogo atualizados.`);
         carregarMateriais();
+        carregarCatalogo();
     } catch (err) {
         console.error(err);
-        showToast("Erro ao atualizar estoque durante a produção", "error");
+        showToast("Erro ao processar produção", "error");
     }
 }
 
@@ -681,6 +710,35 @@ function renderizarHistorico(data) {
 }
 
 async function atualizarStatus(id, novoStatus) {
+    // 1. Buscar dados do orçamento antes de atualizar
+    const { data: orcamento, error: fetchError } = await supabaseClient
+        .from('orcamentos')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (fetchError) return showToast("Erro ao buscar orçamento.", "error");
+
+    // 2. Se o novo status for "Entregue", descontar peças do catálogo
+    if (novoStatus === 'Entregue' && orcamento.status !== 'Entregue') {
+        // O campo 'itens' no banco é um JSON com [{nome, precoUnitario, ...}]
+        const itens = orcamento.itens || [];
+        
+        for (const item of itens) {
+            // Procurar a peça no catálogo pelo nome
+            const peca = pecasCatalogo.find(p => p.nome === item.nome);
+            if (peca) {
+                const novaQtd = Math.max(0, (parseInt(peca.quantidade) || 0) - 1);
+                await supabaseClient
+                    .from('pecas')
+                    .update({ quantidade: novaQtd })
+                    .eq('id', peca.id);
+            }
+        }
+        showToast("Estoque de peças atualizado pela entrega!");
+    }
+
+    // 3. Atualizar o status no banco
     const { error } = await supabaseClient
         .from('orcamentos')
         .update({ status: novoStatus })
@@ -690,7 +748,8 @@ async function atualizarStatus(id, novoStatus) {
         showToast("Erro ao atualizar status.", "error");
     } else {
         showToast(`Status atualizado para "${novoStatus}"!`);
-        carregarHistorico(); // Recarrega para refletir a nova cor
+        carregarHistorico();
+        carregarCatalogo(); // Recarregar catálogo para ver as novas quantidades
     }
 }
 
