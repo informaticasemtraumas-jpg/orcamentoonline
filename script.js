@@ -518,7 +518,7 @@ function carregarConfigFinanceira() {
         document.getElementById('cfg-valor-hora').value = configFinanceira.valorHora;
         document.getElementById('cfg-custos-fixos').value = configFinanceira.custosFixos;
         document.getElementById('cfg-horas-mes').value = configFinanceira.horasMes;
-        document.getElementById('cfg-custo-minuto').innerText = formatadorMoeda.format(configFinanceira.custoMinuto || 0);
+        calcularCustoMinuto();
     }
 }
 
@@ -839,7 +839,8 @@ async function excluirOrcamento(id) {
 }
 
 function atualizarDashboard(orcamentos, financeiro) {
-    if (!orcamentos || !financeiro) return;
+    if (!orcamentos) orcamentos = [];
+    if (!financeiro) financeiro = [];
 
     const agora = new Date();
     const mesAtual = agora.getMonth();
@@ -887,17 +888,17 @@ function atualizarDashboard(orcamentos, financeiro) {
         return map[l] || '#cbd5e1';
     });
 
-    const ctx = document.getElementById('statusChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('statusChart');
+    if (!canvas) return;
 
     if (statusChart) statusChart.destroy();
 
     if (labels.length === 0) {
-        ctx.parentElement.innerHTML = `<p class="text-slate-400 text-sm font-bold text-center">Nenhum dado ainda</p>`;
+        // Se não houver dados, não tenta renderizar o gráfico
         return;
     }
 
-    statusChart = new Chart(ctx, {
+    statusChart = new Chart(canvas, {
         type: 'doughnut',
         data: {
             labels,
