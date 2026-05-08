@@ -11,6 +11,8 @@ let configFinanceira = { valorHora: 0, custosFixos: 0, horasMes: 160, custoMinut
 let currentUser = null;
 let statusChart = null;
 let paginaAtualEstoque = 1;
+let complexidadeAtual = 1.0;
+let complexidadeNome = "Padrão";
 const itensPorPaginaEstoque = 10;
 
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -966,6 +968,65 @@ function setComplex(valor, btn) {
     });
     btn.classList.remove('border-slate-200', 'bg-white', 'text-slate-600');
     btn.classList.add('border-indigo-600', 'bg-indigo-50', 'text-indigo-700');
+    calcularTotal();
+}
+
+function adicionarPeca() {
+    const select = document.getElementById('servico');
+    const option = select.options[select.selectedIndex];
+    if (!option.value) return alert("Selecione um serviço.");
+    const precoBase = parseFloat(option.dataset.preco);
+    const isUrgente = document.getElementById('urgencia').checked;
+    let precoFinal = Math.ceil(precoBase * complexidadeAtual * (isUrgente ? 1.3 : 1));
+    itensOrcamento.push({ id: Date.now(), nome: option.text.split(' - ')[0], complexidadeNome, precoUnitario: precoFinal });
+    renderizarLista();
+    calcularTotal();
+}
+
+function renderizarLista() {
+    const container = document.getElementById('lista-pecas');
+    if (!container) return;
+    if (itensOrcamento.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = itensOrcamento.map(item => `
+        <div class="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+            <div>
+                <p class="font-bold text-slate-800">${item.nome}</p>
+                <p class="text-[10px] text-slate-400 uppercase font-bold">${item.complexidadeNome}</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="font-mono font-bold text-indigo-600">${formatadorMoeda.format(item.precoUnitario)}</span>
+                <button onclick="removerPeca(${item.id})" class="text-slate-300 hover:text-red-500">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>`).join('');
+    lucide.createIcons();
+}
+
+function removerPeca(id) {
+    itensOrcamento = itensOrcamento.filter(i => i.id !== id);
+    renderizarLista();
+    calcularTotal();
+}
+
+function calcularTotal() {
+    const subtotal = itensOrcamento.reduce((acc, i) => acc + i.precoUnitario, 0);
+    const descontoInput = document.getElementById('desconto');
+    const desconto = descontoInput ? (parseFloat(descontoInput.value) || 0) : 0;
+    const total = Math.max(0, subtotal - desconto);
+    
+    const resSubtotal = document.getElementById('res-subtotal');
+    const resDesconto = document.getElementById('res-desconto');
+    const resTotal = document.getElementById('res-total');
+    
+    if (resSubtotal) resSubtotal.innerText = formatadorMoeda.format(subtotal);
+    if (resDesconto) resDesconto.innerText = `- ${formatadorMoeda.format(desconto)}`;
+    if (resTotal) resTotal.innerText = formatadorMoeda.format(total);
+    
+    return { subtotal, desconto, total };
 }
 
 function showToast(msg, type = 'success') {
