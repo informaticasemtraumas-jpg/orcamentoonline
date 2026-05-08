@@ -831,13 +831,11 @@ async function atualizarStatus(id, novoStatus) {
 
     if (fetchError) return showToast("Erro ao buscar orçamento.", "error");
 
-    // 2. Se o novo status for "Entregue", descontar peças do catálogo
+    // 2. Se o novo status for "Entregue", descontar peças do catálogo e registrar no financeiro
     if (novoStatus === 'Entregue' && orcamento.status !== 'Entregue') {
-        // O campo 'itens' no banco é um JSON com [{nome, precoUnitario, ...}]
+        // --- Baixa no Estoque de Peças ---
         const itens = orcamento.itens || [];
-        
         for (const item of itens) {
-            // Procurar a peça no catálogo pelo nome
             const peca = pecasCatalogo.find(p => p.nome === item.nome);
             if (peca) {
                 const novaQtd = Math.max(0, (parseInt(peca.quantidade) || 0) - 1);
@@ -847,7 +845,26 @@ async function atualizarStatus(id, novoStatus) {
                     .eq('id', peca.id);
             }
         }
-        showToast("Estoque de peças atualizado pela entrega!");
+
+        // --- Registro Automático no Financeiro ---
+        const { error: finError } = await supabaseClient
+            .from('financeiro')
+            .insert([{
+                user_id: currentUser.id,
+                tipo: 'entrada',
+                valor: orcamento.total,
+                descricao: `Venda: ${orcamento.cliente || 'Consumidor'}`,
+                categoria: 'Venda de Peças',
+                data: new Date().toISOString().split('T')[0],
+                referencia_id: orcamento.id
+            }]);
+
+        if (finError) {
+            console.error("Erro ao registrar no financeiro:", finError);
+            showToast("Estoque atualizado, mas erro ao registrar financeiro.", "error");
+        } else {
+            showToast("Venda registrada no financeiro e estoque atualizado!");
+        }
     }
 
     // 3. Atualizar o status no banco
