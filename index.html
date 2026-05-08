@@ -77,7 +77,7 @@
                 Estoque
             </button>
             <button id="tab-historico" onclick="switchTab('historico')" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
-                Gestão & Dashboard
+                Financeiro & Produção
             </button>
             <button id="tab-config" onclick="switchTab('config')" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
                 Configurações
@@ -290,35 +290,60 @@
         <!-- VIEW: GESTÃO & DASHBOARD -->
         <div id="view-historico" class="hidden space-y-6">
             <!-- Dashboard Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Faturamento Mês</p>
-                    <h3 id="dash-mes" class="text-3xl font-black text-emerald-600">R$ 0,00</h3>
-                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Orçamentos entregues no mês</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Receitas (Mês)</p>
+                    <h3 id="dash-receitas" class="text-2xl font-black text-emerald-600">R$ 0,00</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Total de vendas entregues</p>
+                </div>
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Despesas (Mês)</p>
+                    <h3 id="dash-despesas" class="text-2xl font-black text-red-500">R$ 0,00</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Compras de materiais</p>
+                </div>
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lucro Real (Mês)</p>
+                    <h3 id="dash-lucro" class="text-2xl font-black text-indigo-600">R$ 0,00</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Receitas - Despesas</p>
                 </div>
                 <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A Receber</p>
-                    <h3 id="dash-receber" class="text-3xl font-black text-amber-500">R$ 0,00</h3>
-                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Pendente + Aguardando + Em Produção</p>
-                </div>
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Geral</p>
-                    <h3 id="dash-total" class="text-3xl font-black text-indigo-600">R$ 0,00</h3>
-                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Todos os orçamentos</p>
+                    <h3 id="dash-receber" class="text-2xl font-black text-amber-500">R$ 0,00</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 font-bold">Orçamentos em aberto</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Gráfico -->
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Status dos Serviços</p>
-                    <div class="relative h-[220px] flex items-center justify-center">
-                        <canvas id="statusChart"></canvas>
+                <!-- Coluna Esquerda: Gráfico e Fluxo -->
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Status da Produção</p>
+                        <div class="relative h-[200px] flex items-center justify-center">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fluxo de Caixa (Mês)</p>
+                            <button onclick="gerarRelatorioMensal()" class="text-[10px] font-black text-indigo-600 hover:underline uppercase">Gerar PDF</button>
+                        </div>
+                        <div id="lista-financeiro" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                            <!-- Movimentações via JS -->
+                        </div>
                     </div>
                 </div>
-                <!-- Lista Histórico -->
+
+                <!-- Coluna Direita: Gestão de Serviços -->
                 <div class="lg:col-span-2 space-y-4">
-                    <h2 class="text-xl font-black text-slate-800">Gestão de Serviços</h2>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-black text-slate-800">Gestão de Serviços</h2>
+                        <div class="flex gap-2">
+                            <select id="filtro-mes-ano" onchange="carregarHistorico()" class="text-[10px] font-bold bg-white border border-slate-200 rounded-lg p-2 outline-none">
+                                <!-- Opções de meses via JS -->
+                            </select>
+                        </div>
+                    </div>
                     <div id="lista-historico" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Histórico via JS -->
                     </div>

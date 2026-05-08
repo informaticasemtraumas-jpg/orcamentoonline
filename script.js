@@ -836,14 +836,86 @@ function getStatusClasses(status) {
 
 async function carregarHistorico() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient
+    
+    // Carregar Orçamentos
+    const { data: orcamentos, error: orcError } = await supabaseClient
         .from('orcamentos')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
-    if (error) return;
-    atualizarDashboard(data);
-    renderizarHistorico(data);
+    
+    // Carregar Financeiro
+    const { data: financeiro, error: finError } = await supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('data', { ascending: false });
+
+    if (orcError || finError) return;
+
+    atualizarDashboard(orcamentos, financeiro);
+    renderizarHistorico(orcamentos);
+    renderizarFluxoFinanceiro(financeiro);
+    atualizarFiltroMeses();
+}
+
+function renderizarFluxoFinanceiro(data) {
+    const container = document.getElementById('lista-financeiro');
+    if (!container) return;
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<p class="text-center py-4 text-slate-400 text-xs font-bold">Nenhuma movimentação este mês.</p>';
+        return;
+    }
+
+    // Filtrar apenas o mês selecionado (ou atual por padrão)
+    const filtro = document.getElementById('filtro-mes-ano').value;
+    let lista = data;
+    if (filtro) {
+        const [ano, mes] = filtro.split('-');
+        lista = data.filter(f => {
+            const d = new Date(f.data + 'T12:00:00');
+            return d.getFullYear() == ano && (d.getMonth() + 1) == mes;
+        });
+    }
+
+    container.innerHTML = lista.map(f => `
+        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center ${f.tipo === 'entrada' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                    <i data-lucide="${f.tipo === 'entrada' ? 'trending-up' : 'trending-down'}" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-black text-slate-800 leading-tight">${f.descricao}</p>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase">${new Date(f.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-xs font-black ${f.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}">
+                    ${f.tipo === 'entrada' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
+                </p>
+                <p class="text-[8px] text-slate-400 font-bold uppercase">${f.categoria}</p>
+            </div>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+function atualizarFiltroMeses() {
+    const select = document.getElementById('filtro-mes-ano');
+    if (!select || select.options.length > 0) return;
+
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const agora = new Date();
+    
+    for (let i = 0; i < 6; i++) {
+        const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+        const valor = `${d.getFullYear()}-${d.getMonth() + 1}`;
+        const texto = `${meses[d.getMonth()]} / ${d.getFullYear()}`;
+        const opt = new Option(texto, valor);
+        if (i === 0) opt.selected = true;
+        select.add(opt);
+    }
 }
 
 function renderizarHistorico(data) {
@@ -957,34 +1029,35 @@ async function excluirOrcamento(id) {
     if (error) showToast("Erro ao excluir", "error"); else carregarHistorico();
 }
 
-function atualizarDashboard(data) {
-    if (!data) return;
+function atualizarDashboard(orcamentos, financeiro) {
+    if (!orcamentos || !financeiro) return;
 
-    // Total geral
-    const totalGeral = data.reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    document.getElementById('dash-total').innerText = formatadorMoeda.format(totalGeral);
+    const filtro = document.getElementById('filtro-mes-ano').value;
+    const [anoFiltro, mesFiltro] = filtro ? filtro.split('-') : [new Date().getFullYear(), new Date().getMonth() + 1];
 
-    // Faturamento do mês atual (status "Entregue" no mês corrente)
-    const agora = new Date();
-    const mesAtual = agora.getMonth();
-    const anoAtual = agora.getFullYear();
-    const faturamentoMes = data
-        .filter(o => {
-            const d = new Date(o.created_at);
-            return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-        })
-        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    document.getElementById('dash-mes').innerText = formatadorMoeda.format(faturamentoMes);
+    // Filtrar financeiro pelo mês selecionado
+    const finMes = financeiro.filter(f => {
+        const d = new Date(f.data + 'T12:00:00');
+        return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
+    });
 
-    // A receber: status Pendente, Aguardando Aprovação ou Em Produção
-    const aReceber = data
+    const receitas = finMes.filter(f => f.tipo === 'entrada').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const despesas = finMes.filter(f => f.tipo === 'saida').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const lucro = receitas - despesas;
+
+    document.getElementById('dash-receitas').innerText = formatadorMoeda.format(receitas);
+    document.getElementById('dash-despesas').innerText = formatadorMoeda.format(despesas);
+    document.getElementById('dash-lucro').innerText = formatadorMoeda.format(lucro);
+
+    // A receber (todos os orçamentos em aberto, independente do mês)
+    const aReceber = orcamentos
         .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     document.getElementById('dash-receber').innerText = formatadorMoeda.format(aReceber);
 
-    // Gráfico de status
+    // Gráfico de status (baseado em todos os orçamentos)
     const contagem = {};
-    data.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
+    orcamentos.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
     const labels = Object.keys(contagem);
     const valores = Object.values(contagem);
     const coresGrafico = labels.map(l => {
@@ -1000,13 +1073,7 @@ function atualizarDashboard(data) {
 
     const ctx = document.getElementById('statusChart');
     if (!ctx) return;
-
     if (statusChart) statusChart.destroy();
-
-    if (labels.length === 0) {
-        ctx.parentElement.innerHTML = `<p class="text-slate-400 text-sm font-bold text-center">Nenhum dado ainda</p>`;
-        return;
-    }
 
     statusChart = new Chart(ctx, {
         type: 'doughnut',
@@ -1024,16 +1091,15 @@ function atualizarDashboard(data) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        font: { size: 10, weight: 'bold' },
-                        padding: 12,
-                        boxWidth: 10,
-                        boxHeight: 10,
-                    }
+                    labels: { font: { size: 9, weight: 'bold' }, padding: 8, boxWidth: 8 }
                 }
             }
         }
     });
+}
+
+function gerarRelatorioMensal() {
+    showToast("Função de relatório PDF será implementada na próxima etapa!", "info");
 }
 
 function setComplex(valor, btn) {
