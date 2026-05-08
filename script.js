@@ -649,11 +649,22 @@ async function gerarPDF() {
         observacoes
     };
     
-    await supabaseClient.from('orcamentos').insert([{
-        ...dados,
+    const { error } = await supabaseClient.from('orcamentos').insert([{
+        cliente: dados.cliente,
+        whatsapp: dados.whatsapp,
+        itens: dados.itens,
+        subtotal: dados.subtotal,
+        desconto: dados.desconto,
+        total: dados.total,
+        observacoes: dados.observacoes,
         status: 'Aguardando Aprovação',
         user_id: currentUser.id
     }]);
+
+    if (error) {
+        console.error("Erro ao salvar orçamento:", error);
+        return showToast("Erro ao salvar orçamento no banco de dados.", "error");
+    }
     
     document.getElementById('pdf-header-nome').innerText = document.getElementById('atelie-nome').value;
     document.getElementById('pdf-header-contato').innerText = `WhatsApp: ${document.getElementById('atelie-fone').value} | ${document.getElementById('atelie-extra').value}`;
@@ -1155,8 +1166,55 @@ async function venderPeca(id) {
     abrirModalVenda(id);
 }
 
-function gerarRelatorioPDF() {
-    showToast("Relatório em desenvolvimento", "error");
+async function gerarRelatorioMensal() {
+    const filtro = document.getElementById('filtro-mes-ano').value;
+    if (!filtro) return showToast("Selecione um mês para gerar o relatório.", "error");
+
+    const [anoFiltro, mesFiltro] = filtro.split('-');
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    
+    const { data: financeiro, error } = await supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('data_movimentacao', { ascending: true });
+
+    if (error) return showToast("Erro ao carregar dados para o relatório.", "error");
+
+    const finMes = financeiro.filter(f => {
+        const d = new Date(f.data_movimentacao + 'T12:00:00');
+        return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
+    });
+
+    if (finMes.length === 0) return showToast("Não há movimentações no mês selecionado.", "error");
+
+    const receitas = finMes.filter(f => f.tipo === 'ENTRADA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const despesas = finMes.filter(f => f.tipo === 'SAIDA').reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const lucro = receitas - despesas;
+
+    document.getElementById('rel-header-nome').innerText = document.getElementById('atelie-nome').value;
+    document.getElementById('rel-periodo').innerText = `${meses[mesFiltro - 1]} / ${anoFiltro}`;
+    document.getElementById('rel-data-emissao').innerText = new Date().toLocaleDateString('pt-BR');
+    
+    document.getElementById('rel-total-recebido').innerText = formatadorMoeda.format(receitas);
+    document.getElementById('rel-total-gasto').innerText = formatadorMoeda.format(despesas);
+    document.getElementById('rel-lucro-liquido').innerText = formatadorMoeda.format(lucro);
+
+    document.getElementById('rel-tabela-corpo').innerHTML = finMes.map(f => `
+        <tr class="border-b border-slate-100">
+            <td class="py-3 px-2 text-xs font-bold text-slate-600">${new Date(f.data_movimentacao + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="py-3 px-2 text-xs font-black text-slate-800">${f.descricao}</td>
+            <td class="py-3 px-2 text-[10px] font-bold text-slate-400 uppercase">${f.categoria}</td>
+            <td class="py-3 px-2 text-xs font-black text-right ${f.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-500'}">
+                ${f.tipo === 'ENTRADA' ? '+' : '-'} ${formatadorMoeda.format(f.valor)}
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('modal-relatorio').classList.remove('hidden');
 }
+
+function fecharModalRelatorio() { document.getElementById('modal-relatorio').classList.add('hidden'); }
+function imprimirRelatorio() { window.print(); }
 
 checkUser();
