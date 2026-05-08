@@ -326,7 +326,7 @@ async function salvarCompraMaterial() {
             valor: valorTotal,
             descricao: `Compra: ${material.nome}${fornecedor ? ' (' + fornecedor + ')' : ''}`,
             categoria: 'Compra de Materiais',
-            data: new Date().toISOString().split('T')[0],
+            data_movimentacao: new Date().toISOString().split('T')[0],
             referencia_id: materialId
         }]);
 
@@ -849,7 +849,7 @@ async function carregarHistorico() {
         .from('financeiro')
         .select('*')
         .eq('user_id', currentUser.id)
-        .order('data', { ascending: false });
+        .order('data_movimentacao', { ascending: false });
 
     if (orcError || finError) return;
 
@@ -874,7 +874,7 @@ function renderizarFluxoFinanceiro(data) {
     if (filtro) {
         const [ano, mes] = filtro.split('-');
         lista = data.filter(f => {
-            const d = new Date(f.data + 'T12:00:00');
+            const d = new Date(f.data_movimentacao + 'T12:00:00');
             return d.getFullYear() == ano && (d.getMonth() + 1) == mes;
         });
     }
@@ -887,7 +887,7 @@ function renderizarFluxoFinanceiro(data) {
                 </div>
                 <div>
                     <p class="text-xs font-black text-slate-800 leading-tight">${f.descricao}</p>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase">${new Date(f.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase">${new Date(f.data_movimentacao + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
                 </div>
             </div>
             <div class="text-right">
@@ -996,7 +996,7 @@ async function atualizarStatus(id, novoStatus) {
                 valor: orcamento.total,
                 descricao: `Venda: ${orcamento.cliente || 'Consumidor'}`,
                 categoria: 'Venda de Peças',
-                data: new Date().toISOString().split('T')[0],
+                data_movimentacao: new Date().toISOString().split('T')[0],
                 referencia_id: orcamento.id
             }]);
 
@@ -1037,7 +1037,7 @@ function atualizarDashboard(orcamentos, financeiro) {
 
     // Filtrar financeiro pelo mês selecionado
     const finMes = financeiro.filter(f => {
-        const d = new Date(f.data + 'T12:00:00');
+        const d = new Date(f.data_movimentacao + 'T12:00:00');
         return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
     });
 
@@ -1110,12 +1110,12 @@ async function gerarRelatorioMensal() {
         .from('financeiro')
         .select('*')
         .eq('user_id', currentUser.id)
-        .order('data', { ascending: true });
+        .order('data_movimentacao', { ascending: true });
 
     if (error) return showToast("Erro ao carregar dados para o relatório.", "error");
 
     const finMes = financeiro.filter(f => {
-        const d = new Date(f.data + 'T12:00:00');
+        const d = new Date(f.data_movimentacao + 'T12:00:00');
         return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
     });
 
@@ -1136,7 +1136,7 @@ async function gerarRelatorioMensal() {
 
     document.getElementById('rel-tabela-corpo').innerHTML = finMes.map(f => `
         <tr class="border-b border-slate-100">
-            <td class="py-3 px-2 text-xs font-bold text-slate-600">${new Date(f.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="py-3 px-2 text-xs font-bold text-slate-600">${new Date(f.data_movimentacao + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
             <td class="py-3 px-2 text-xs font-black text-slate-800">${f.descricao}</td>
             <td class="py-3 px-2 text-[10px] font-bold text-slate-400 uppercase">${f.categoria}</td>
             <td class="py-3 px-2 text-xs font-black text-right ${f.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-500'}">
