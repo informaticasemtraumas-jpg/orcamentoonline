@@ -32,11 +32,11 @@
         <div class="space-y-4">
             <div>
                 <label class="text-xs font-bold text-slate-400 uppercase ml-1">E-mail</label>
-                <input type="email" id="auth-email" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all" placeholder="seu@email.com">
+                <input type="email" id="auth-email" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all shadow-sm hover:border-slate-300" placeholder="seu@email.com">
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-400 uppercase ml-1">Senha</label>
-                <input type="password" id="auth-password" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all" placeholder="••••••••">
+                <input type="password" id="auth-password" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all shadow-sm hover:border-slate-300" placeholder="••••••••">
             </div>
             <div id="auth-error" class="hidden text-red-500 text-xs font-bold text-center"></div>
             <button onclick="handleLogin()" class="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">ENTRAR</button>
@@ -92,18 +92,18 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
-                            <input type="text" id="cliente" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Nome do cliente">
+                            <input type="text" id="cliente" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome do cliente">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
-                            <input type="text" id="whatsapp" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="(00) 00000-0000">
+                            <input type="text" id="whatsapp" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="(00) 00000-0000">
                         </div>
                     </div>
 
                     <div class="space-y-4 pt-4 border-t border-slate-50">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Adicionar Serviço</label>
                         <div class="flex flex-col md:flex-row gap-3">
-                            <select id="servico" class="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700">
+                            <select id="servico" class="flex-1 p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
                                 <option value="" disabled selected>Selecione o serviço...</option>
                                 <option value="ajuste" data-preco="20">AJUSTE DE TAMANHO - R$ 20,00</option>
                                 <option value="bainha" data-preco="18">BAINHA EM GERAL - R$ 18,00</option>
@@ -144,7 +144,7 @@
                     <!-- CAMPO DE OBSERVAÇÕES -->
                     <div class="space-y-1 pt-4 border-t border-slate-50">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações (opcional)</label>
-                        <textarea id="observacoes" rows="3" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700 resize-none" placeholder="Ex: Peça com bordado especial, cliente solicitou acabamento reforçado..."></textarea>
+                        <textarea id="observacoes" rows="3" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300 resize-none" placeholder="Ex: Peça com bordado especial, cliente solicitou acabamento reforçado..."></textarea>
                     </div>
                 </section>
 
@@ -169,7 +169,7 @@
                                 <span>Desconto</span>
                                 <span id="res-desconto">- R$ 0,00</span>
                             </div>
-                            <input type="number" id="desconto" oninput="calcularTotal()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all font-bold text-sm" placeholder="Valor do desconto">
+                            <input type="number" id="desconto" oninput="calcularTotal()" class="w-full p-3 bg-white border-2 border-emerald-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-emerald-300 text-sm" placeholder="Valor do desconto">
                         </div>
                         <div class="pt-4 border-t-2 border-dashed border-slate-100 flex justify-between items-end">
                             <span class="text-slate-800 font-black text-lg">TOTAL</span>
@@ -334,15 +334,15 @@
                     <div class="space-y-4">
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Ateliê</label>
-                            <input type="text" id="atelie-nome" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" value="Ateliê Viva Arte">
+                            <input type="text" id="atelie-nome" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" value="Ateliê Viva Arte">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
-                            <input type="text" id="atelie-fone" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" value="(82) 98163-1996">
+                            <input type="text" id="atelie-fone" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" value="(82) 98163-1996">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instagram / Extra</label>
-                            <input type="text" id="atelie-extra" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" value="@atelievivarte">
+                            <input type="text" id="atelie-extra" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" value="@atelievivarte">
                         </div>
                         <button onclick="salvarConfig()" class="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all">SALVAR DADOS</button>
                     </div>
@@ -357,16 +357,16 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor da sua Hora (R$)</label>
-                                <input type="number" id="cfg-valor-hora" oninput="calcularCustoMinuto()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-emerald-600 transition-all font-bold text-slate-700" placeholder="0.00">
+                                <input type="number" id="cfg-valor-hora" oninput="calcularCustoMinuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
                             </div>
                             <div class="space-y-1">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Custos Fixos Mês (R$)</label>
-                                <input type="number" id="cfg-custos-fixos" oninput="calcularCustoMinuto()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-emerald-600 transition-all font-bold text-slate-700" placeholder="0.00">
+                                <input type="number" id="cfg-custos-fixos" oninput="calcularCustoMinuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
                             </div>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Horas de Trabalho / Mês</label>
-                            <input type="number" id="cfg-horas-mes" oninput="calcularCustoMinuto()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-emerald-600 transition-all font-bold text-slate-700" value="160">
+                            <input type="number" id="cfg-horas-mes" oninput="calcularCustoMinuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" value="160">
                         </div>
                         <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                             <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Seu Custo por Minuto</p>
@@ -396,13 +396,13 @@
             <div class="space-y-4">
                 <div class="space-y-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Material</label>
-                    <input type="text" id="material-nome" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Ex: Saco Alvejado Duplo">
+                    <input type="text" id="material-nome" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Ex: Saco Alvejado Duplo">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidade</label>
-                        <select id="material-unidade" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700">
+                        <select id="material-unidade" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
                             <option value="unidades">unidades</option>
                             <option value="metros">metros</option>
                             <option value="m²">m²</option>
@@ -415,7 +415,7 @@
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade</label>
                         <div class="relative">
-                            <input type="number" id="material-quantidade" oninput="calcularPrecoUnitarioMaterial()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Ex: 20">
+                            <input type="number" id="material-quantidade" oninput="calcularPrecoUnitarioMaterial()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Ex: 20">
                             <button type="button" onclick="abrirCalculadoraAreaMaterial()" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all" title="Calcular area em m2">
                                 <i data-lucide="calculator" class="w-5 h-5"></i>
                             </button>
@@ -429,11 +429,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-500 uppercase ml-1">Preço Total Pago (R$)</label>
-                            <input type="number" id="material-preco-total" oninput="calcularPrecoUnitarioMaterial()" class="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Ex: 120,00">
+                            <input type="number" id="material-preco-total" oninput="calcularPrecoUnitarioMaterial()" class="w-full p-3 bg-white border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-indigo-400" placeholder="Ex: 120,00">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-500 uppercase ml-1">Preço Unitário (R$)</label>
-                            <input type="number" id="material-preco-unitario" oninput="limparPrecoTotal()" class="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Ex: 6,00">
+                            <input type="number" id="material-preco-unitario" oninput="limparPrecoTotal()" class="w-full p-3 bg-white border-2 border-indigo-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-indigo-400" placeholder="Ex: 6,00">
                         </div>
                     </div>
                     <div id="material-calculo-resultado" class="hidden p-3 bg-white rounded-xl border border-indigo-200 text-center">
@@ -444,7 +444,7 @@
 
                 <div class="space-y-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição (opcional)</label>
-                    <input type="text" id="material-descricao" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Detalhes adicionais...">
+                    <input type="text" id="material-descricao" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Detalhes adicionais...">
                 </div>
             </div>
 
@@ -469,28 +469,28 @@
                 <div class="space-y-4">
                     <div class="space-y-1">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Peça</label>
-                        <input type="text" id="peca-nome" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold" placeholder="Ex: Necessaire Gorduça">
+                        <input type="text" id="peca-nome" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Ex: Necessaire Gorduça">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tempo Produção (min)</label>
-                            <input type="number" id="peca-tempo" oninput="calcularPrecoPeca()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold" placeholder="0">
+                            <input type="number" id="peca-tempo" oninput="calcularPrecoPeca()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Margem Lucro (%)</label>
-                            <input type="number" id="peca-margem" oninput="calcularPrecoPeca()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold" placeholder="100" value="100">
+                            <input type="number" id="peca-margem" oninput="calcularPrecoPeca()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="100" value="100">
                         </div>
                     </div>
                     
                     <!-- Adicionar Material à Peça -->
                     <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adicionar Material do Estoque</p>
-                        <select id="peca-material-select" class="w-full p-4 bg-white border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 font-bold text-sm">
+                        <select id="peca-material-select" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300 text-sm">
                             <option value="" disabled selected>Selecione um material...</option>
                         </select>
                         <div class="flex gap-2">
                             <div class="relative flex-1">
-                                <input type="number" id="peca-material-qtd" class="w-full p-4 bg-white border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 font-bold text-sm" placeholder="Quantidade">
+                                <input type="number" id="peca-material-qtd" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300 text-sm" placeholder="Quantidade">
                                 <button onclick="abrirCalculadoraArea()" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100">
                                     <i data-lucide="calculator" class="w-5 h-5"></i>
                                 </button>
