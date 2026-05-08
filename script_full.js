@@ -1,8 +1,3 @@
-// Configuração do Supabase
-const SUPABASE_URL = 'https://ifmqqaxherxadjsxljpv.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 // Configurações e Variáveis Globais
 let materiais = [];
 let pecasCatalogo = [];
@@ -486,30 +481,38 @@ function abrirCalculadoraArea() {
     document.getElementById('calc-origem').value = 'peca';
     document.getElementById('mini-largura').value = '';
     document.getElementById('mini-altura').value = '';
-    document.getElementById('mini-resultado').innerText = '0.0000 m²';
     document.getElementById('modal-calc-area').classList.remove('hidden');
-    configurarInputsCalculadora();
+    
+    const calc = () => {
+        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    };
+    document.getElementById('mini-largura').oninput = calc;
+    document.getElementById('mini-altura').oninput = calc;
 }
 
 function abrirCalculadoraAreaMaterial() {
     document.getElementById('calc-origem').value = 'material';
     document.getElementById('mini-largura').value = '';
     document.getElementById('mini-altura').value = '';
-    document.getElementById('mini-resultado').innerText = '0.0000 m²';
     document.getElementById('modal-calc-area').classList.remove('hidden');
-    configurarInputsCalculadora();
+    
+    const calc = () => {
+        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    };
+    document.getElementById('mini-largura').oninput = calc;
+    document.getElementById('mini-altura').oninput = calc;
 }
 
 function abrirCalculadoraAreaCompra() {
     document.getElementById('calc-origem').value = 'compra';
     document.getElementById('mini-largura').value = '';
     document.getElementById('mini-altura').value = '';
-    document.getElementById('mini-resultado').innerText = '0.0000 m²';
     document.getElementById('modal-calc-area').classList.remove('hidden');
-    configurarInputsCalculadora();
-}
-
-function configurarInputsCalculadora() {
+    
     const calc = () => {
         const l = parseFloat(document.getElementById('mini-largura').value) || 0;
         const a = parseFloat(document.getElementById('mini-altura').value) || 0;
