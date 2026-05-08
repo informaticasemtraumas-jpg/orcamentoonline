@@ -1057,39 +1057,87 @@ async function registrarMovimentacao(tipo, categoria, descricao, valor, referenc
     }
 }
 
-async function venderPeca(id) {
+let vendaAtual = { peca_id: null, peca_nome: '', preco_unitario: 0 };
+
+function abrirModalVenda(id) {
     const peca = pecasCatalogo.find(p => p.id === id);
     if (!peca) return;
     
-    const qtdVender = parseInt(prompt(`Quantas unidades de "${peca.nome}" você vender?`, "1")) || 0;
-    if (qtdVender <= 0) return;
+    vendaAtual = { peca_id: id, peca_nome: peca.nome, preco_unitario: parseFloat(peca.preco_venda) };
     
+    document.getElementById('venda-cliente').value = '';
+    document.getElementById('venda-peca-nome').value = peca.nome;
+    document.getElementById('venda-quantidade').value = '1';
+    document.getElementById('venda-preco-unitario').value = peca.preco_venda.toFixed(2);
+    document.getElementById('venda-desconto').value = '0';
+    document.getElementById('venda-pagamento').value = 'Pix';
+    
+    calcularTotalVenda();
+    document.getElementById('modal-venda').classList.remove('hidden');
+}
+
+function fecharModalVenda() {
+    document.getElementById('modal-venda').classList.add('hidden');
+}
+
+function calcularTotalVenda() {
+    const quantidade = parseFloat(document.getElementById('venda-quantidade').value) || 0;
+    const precoUnitario = parseFloat(document.getElementById('venda-preco-unitario').value) || 0;
+    const desconto = parseFloat(document.getElementById('venda-desconto').value) || 0;
+    
+    const subtotal = quantidade * precoUnitario;
+    const total = Math.max(0, subtotal - desconto);
+    
+    document.getElementById('venda-subtotal').innerText = formatadorMoeda.format(subtotal);
+    document.getElementById('venda-desconto-exibir').innerText = `- ${formatadorMoeda.format(desconto)}`;
+    document.getElementById('venda-total').innerText = formatadorMoeda.format(total);
+}
+
+async function confirmarVenda() {
+    const cliente = document.getElementById('venda-cliente').value.trim() || 'Cliente Sem Nome';
+    const quantidade = parseInt(document.getElementById('venda-quantidade').value) || 0;
+    const desconto = parseFloat(document.getElementById('venda-desconto').value) || 0;
+    const pagamento = document.getElementById('venda-pagamento').value;
+    const precoUnitario = parseFloat(document.getElementById('venda-preco-unitario').value) || 0;
+    
+    if (quantidade <= 0) return showToast("Quantidade inválida", "error");
+    
+    const peca = pecasCatalogo.find(p => p.id === vendaAtual.peca_id);
     const qtdDisponivel = parseInt(peca.quantidade) || 0;
-    if (qtdDisponivel < qtdVender) {
+    
+    if (qtdDisponivel < quantidade) {
         return showToast(`Estoque insuficiente. Disponível: ${qtdDisponivel}`, "error");
     }
     
-    const valorTotal = qtdVender * parseFloat(peca.preco_venda);
+    const subtotal = quantidade * precoUnitario;
+    const valorTotal = Math.max(0, subtotal - desconto);
     
     try {
         // 1. Descontar do estoque de peças prontas
-        const novaQtd = qtdDisponivel - qtdVender;
+        const novaQtd = qtdDisponivel - quantidade;
         const { error: updateError } = await supabaseClient
             .from('pecas')
             .update({ quantidade: novaQtd })
-            .eq('id', id);
+            .eq('id', vendaAtual.peca_id);
         
         if (updateError) throw updateError;
         
         // 2. Registrar a entrada no financeiro
-        await registrarMovimentacao('ENTRADA', 'Venda de Peça', `${qtdVender}x ${peca.nome}`, valorTotal, id);
+        const descricao = `${quantidade}x ${peca.nome} | Cliente: ${cliente} | ${pagamento}${desconto > 0 ? ` | Desconto: R$ ${desconto.toFixed(2)}` : ''}`;
+        await registrarMovimentacao('ENTRADA', 'Venda de Peça', descricao, valorTotal, vendaAtual.peca_id);
         
-        showToast(`Venda de ${qtdVender} peça(s) registrada! Entrada: ${formatadorMoeda.format(valorTotal)}`);
+        showToast(`Venda de ${quantidade} peça(s) registrada! Total: ${formatadorMoeda.format(valorTotal)}`);
+        fecharModalVenda();
         carregarCatalogo();
+        carregarFinanceiro();
     } catch (err) {
         console.error(err);
         showToast("Erro ao processar venda", "error");
     }
+}
+
+async function venderPeca(id) {
+    abrirModalVenda(id);
 }
 
 function gerarRelatorioPDF() {
