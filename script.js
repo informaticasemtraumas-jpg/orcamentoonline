@@ -653,10 +653,7 @@ async function gerarPDF() {
         cliente: dados.cliente,
         whatsapp: dados.whatsapp,
         itens: dados.itens,
-        subtotal: dados.subtotal,
-        desconto: dados.desconto,
         total: dados.total,
-        observacoes: dados.observacoes,
         status: 'Aguardando Aprovação',
         user_id: currentUser.id
     }]);
@@ -1216,5 +1213,92 @@ async function gerarRelatorioMensal() {
 
 function fecharModalRelatorio() { document.getElementById('modal-relatorio').classList.add('hidden'); }
 function imprimirRelatorio() { window.print(); }
+function gerarRelatorioPDF() { gerarRelatorioMensal(); }
+
+// --- COMPRA DE MATERIAIS ---
+function abrirModalRegistrarCompra() {
+    const select = document.getElementById('compra-material-id');
+    if (!select) return;
+    select.innerHTML = '<option value="" disabled selected>Selecione o material comprado...</option>' + 
+        materiais.map(m => `<option value="${m.id}">${m.nome} (${m.unidade})</option>`).join('');
+    document.getElementById('compra-quantidade').value = '';
+    document.getElementById('compra-valor-total').value = '';
+    document.getElementById('compra-fornecedor').value = '';
+    document.getElementById('modal-compra').classList.remove('hidden');
+}
+
+function fecharModalCompra() { document.getElementById('modal-compra').classList.add('hidden'); }
+
+async function salvarCompraMaterial() {
+    const materialId = document.getElementById('compra-material-id').value;
+    const qtdComprada = parseFloat(document.getElementById('compra-quantidade').value) || 0;
+    const valorTotal = parseFloat(document.getElementById('compra-valor-total').value) || 0;
+    const fornecedor = document.getElementById('compra-fornecedor').value.trim();
+    if (!materialId) return showToast("Selecione um material.", "error");
+    if (qtdComprada <= 0) return showToast("Informe a quantidade.", "error");
+    if (valorTotal <= 0) return showToast("Informe o valor total.", "error");
+    const material = materiais.find(m => m.id == materialId);
+    if (!material) return;
+    const novaQtd = (parseFloat(material.quantidade) || 0) + qtdComprada;
+    const novoPrecoUnitario = valorTotal / qtdComprada;
+    const { error: matError } = await supabaseClient.from('materiais').update({ 
+        quantidade: novaQtd,
+        preco_unitario: novoPrecoUnitario,
+        descricao: fornecedor ? `Última compra: ${fornecedor}` : material.descricao
+    }).eq('id', materialId);
+    if (matError) return showToast("Erro ao atualizar estoque.", "error");
+    await registrarMovimentacao('SAIDA', 'Compra de Materiais', `Compra: ${material.nome}${fornecedor ? ' (' + fornecedor + ')' : ''}`, valorTotal, materialId);
+    showToast("Compra registrada e estoque atualizado!");
+    fecharModalCompra();
+    carregarMateriais();
+    carregarFinanceiro();
+}
+
+// --- CALCULADORA DE ÁREA ---
+function abrirCalculadoraAreaMaterial() {
+    document.getElementById('calc-origem').value = 'material';
+    document.getElementById('mini-largura').value = '';
+    document.getElementById('mini-altura').value = '';
+    document.getElementById('mini-resultado').innerText = '0.0000 m²';
+    document.getElementById('modal-calc-area').classList.remove('hidden');
+    const calc = () => {
+        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    };
+    document.getElementById('mini-largura').oninput = calc;
+    document.getElementById('mini-altura').oninput = calc;
+}
+
+function abrirCalculadoraAreaCompra() {
+    document.getElementById('calc-origem').value = 'compra';
+    document.getElementById('mini-largura').value = '';
+    document.getElementById('mini-altura').value = '';
+    document.getElementById('mini-resultado').innerText = '0.0000 m²';
+    document.getElementById('modal-calc-area').classList.remove('hidden');
+    const calc = () => {
+        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    };
+    document.getElementById('mini-largura').oninput = calc;
+    document.getElementById('mini-altura').oninput = calc;
+}
+
+function fecharCalculadoraArea() { document.getElementById('modal-calc-area').classList.add('hidden'); }
+
+function aplicarResultadoArea() {
+    const l = parseFloat(document.getElementById('mini-largura').value) || 0;
+    const a = parseFloat(document.getElementById('mini-altura').value) || 0;
+    const resultado = ((l * a) / 10000).toFixed(4);
+    const origem = document.getElementById('calc-origem').value || 'peca';
+    if (origem === 'material') {
+        document.getElementById('material-quantidade').value = resultado;
+        if (typeof calcularPrecoUnitarioMaterial === 'function') calcularPrecoUnitarioMaterial();
+    } else if (origem === 'compra') {
+        document.getElementById('compra-quantidade').value = resultado;
+    }
+    fecharCalculadoraArea();
+}
 
 checkUser();
