@@ -1,8 +1,3 @@
-// Configuração do Supabase
-const SUPABASE_URL = 'https://ifmqqaxherxadjsxljpv.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_1acNQnNCChNAow0De54rbQ_R0GAafgK';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 // Inicialização dos ícones Lucide
 lucide.createIcons();
 
