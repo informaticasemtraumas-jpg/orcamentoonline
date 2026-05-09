@@ -24,12 +24,6 @@ let configFinanceira = {
     custoMinuto: 0
 };
 
-// Formatador de Moeda
-const formatadorMoeda = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-});
-
 // ====================== ESTOQUE ======================
 
 async function carregarMateriais() {
@@ -274,14 +268,14 @@ async function produzirPeca(id) {
         .eq('peca_id', id);
 
     if (error || !composicao || composicao.length === 0) {
-        return alert("Esta peça não tem materiais cadastrados na composição.");
+        return showAlert("Esta peça não tem materiais cadastrados na composição.", "error");
     }
 
     for (const item of composicao) {
         const material = materiais.find(m => m.id === item.material_id);
         const totalNecessario = item.quantidade_usada * qtdProduzir;
         if (!material || material.quantidade < totalNecessario) {
-            return alert(`Estoque insuficiente de "${material ? material.nome : 'Material desconhecido'}". Necessário: ${totalNecessario.toFixed(4)}, Disponível: ${material ? material.quantidade.toFixed(4) : 0}`);
+            return showAlert(`Estoque insuficiente de "${material ? material.nome : 'Material desconhecido'}". Necessário: ${totalNecessario.toFixed(4)}, Disponível: ${material ? material.quantidade.toFixed(4) : 0}`, "error");
         }
     }
 
@@ -333,7 +327,7 @@ function adicionarMaterialAPeca() {
     const select = document.getElementById('peca-material-select');
     const materialId = select.value;
     const qtd = parseFloat(document.getElementById('peca-material-qtd').value) || 0;
-    if (!materialId || qtd <= 0) return alert("Selecione o material e a quantidade.");
+    if (!materialId || qtd <= 0) return showAlert("Selecione o material e a quantidade.", "error");
 
     const material = materiais.find(m => m.id == materialId);
     composicaoAtual.push({ material_id: material.id, nome: material.nome, unidade: material.unidade, preco: material.preco_unitario, qtd });
@@ -384,7 +378,7 @@ async function salvarPecaCompleta() {
     const tempo = parseFloat(document.getElementById('peca-tempo').value) || 0;
     const { precoVenda, custoMaoDeObra } = calcularPrecoPeca();
 
-    if (!nome || composicaoAtual.length === 0) return alert("Preencha o nome e adicione materiais.");
+    if (!nome || composicaoAtual.length === 0) return showAlert("Preencha o nome e adicione materiais.", "error");
 
     const { data: peca, error: pecaError } = await supabaseClient.from('pecas').insert([{
         user_id: currentUser.id, nome, tempo_producao: tempo, mao_de_obra: custoMaoDeObra, preco_venda: precoVenda
@@ -522,43 +516,7 @@ function carregarConfigFinanceira() {
     }
 }
 
-// ====================== SISTEMA BASE ======================
-
-async function checkUser() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-        currentUser = user;
-        document.getElementById('auth-container').classList.add('hidden');
-        document.getElementById('app-container').classList.remove('hidden');
-        carregarConfig();
-        carregarHistorico();
-        carregarMateriais();
-        carregarCatalogo();
-        carregarConfigFinanceira();
-    } else {
-        document.getElementById('auth-container').classList.remove('hidden');
-        document.getElementById('app-container').classList.add('hidden');
-    }
-}
-
-async function handleLogin() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) {
-        document.getElementById('auth-error').innerText = error.message;
-        document.getElementById('auth-error').classList.remove('hidden');
-    } else checkUser();
-}
-
-async function handleSignUp() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) alert(error.message); else alert("Cadastro realizado! Tente logar.");
-}
-
-async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
+// ====================== NAVEGAÇÃO ======================
 
 function switchTab(tab) {
     const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-config'];
@@ -596,7 +554,7 @@ function switchTab(tab) {
 function adicionarPeca() {
     const select = document.getElementById('servico');
     const option = select.options[select.selectedIndex];
-    if (!option.value) return alert("Selecione um serviço.");
+    if (!option.value) return showAlert("Selecione um serviço.", "error");
     const precoBase = parseFloat(option.dataset.preco);
     const isUrgente = document.getElementById('urgencia').checked;
     let precoFinal = Math.ceil(precoBase * complexidadeAtual * (isUrgente ? 1.3 : 1));
@@ -644,7 +602,7 @@ function calcularTotal() {
 }
 
 async function gerarPDF() {
-    if (itensOrcamento.length === 0) return alert("Adicione itens ao orçamento.");
+    if (itensOrcamento.length === 0) return showAlert("Adicione itens ao orçamento.", "error");
     const totais = calcularTotal();
     const observacoes = document.getElementById('observacoes').value.trim();
     const dados = {
@@ -675,7 +633,7 @@ async function gerarPDF() {
     document.getElementById('pdf-header-contato').innerText = `WhatsApp: ${document.getElementById('atelie-fone').value} | ${document.getElementById('atelie-extra').value}`;
     document.getElementById('pdf-cliente-nome').innerText = dados.cliente;
     document.getElementById('pdf-cliente-fone').innerText = dados.whatsapp;
-    document.getElementById('pdf-data').innerText = new Date().toLocaleDateString('pt-BR');
+    document.getElementById('pdf-data').innerText = formatDate();
     document.getElementById('pdf-numero').innerText = '#' + Date.now().toString().slice(-6);
     document.getElementById('pdf-tabela-corpo').innerHTML = dados.itens.map(i => `
         <tr class="border-b border-slate-100">
@@ -758,7 +716,7 @@ function renderizarHistorico(data) {
             <div class="flex justify-between items-start">
                 <div>
                     <p class="font-black text-slate-800 text-lg">${orc.cliente || 'Consumidor'}</p>
-                    <p class="text-[10px] text-slate-400 uppercase font-bold">${new Date(orc.created_at).toLocaleDateString('pt-BR')}</p>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold">${formatDate(orc.created_at)}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${sc.bg} ${sc.text} ${sc.border}">
@@ -935,14 +893,6 @@ function setComplex(valor, btn) {
     btn.classList.add('border-indigo-600', 'bg-indigo-50', 'text-indigo-700');
 }
 
-function showToast(msg, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`;
-    toast.innerText = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
-}
-
 function salvarConfig() {
     const config = {
         nome: document.getElementById('atelie-nome').value,
@@ -964,8 +914,6 @@ function carregarConfig() {
 
 function fecharModalPDF() { document.getElementById('modal-pdf').classList.add('hidden'); }
 function imprimirPDF() { window.print(); }
-
-checkUser();
 
 let vendaAtual = { peca_id: null, peca_nome: '', preco_unitario: 0 };
 
@@ -1073,7 +1021,7 @@ async function gerarRelatorioMensal() {
 
     document.getElementById('rel-header-nome').innerText = document.getElementById('atelie-nome').value;
     document.getElementById('rel-periodo').innerText = `${meses[mesFiltro - 1]} / ${anoFiltro}`;
-    document.getElementById('rel-data-emissao').innerText = new Date().toLocaleDateString('pt-BR');
+    document.getElementById('rel-data-emissao').innerText = formatDate();
     
     document.getElementById('rel-total-recebido').innerText = formatadorMoeda.format(receitas);
     document.getElementById('rel-total-gasto').innerText = formatadorMoeda.format(despesas);
@@ -1081,7 +1029,7 @@ async function gerarRelatorioMensal() {
 
     document.getElementById('rel-tabela-corpo').innerHTML = finMes.map(f => `
         <tr class="border-b border-slate-100">
-            <td class="py-3 px-2 text-xs font-bold text-slate-600">${new Date(f.data_movimentacao + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="py-3 px-2 text-xs font-bold text-slate-600">${formatDate(f.data_movimentacao + 'T12:00:00')}</td>
             <td class="py-3 px-2 text-xs font-black text-slate-800">${f.descricao}</td>
             <td class="py-3 px-2 text-[10px] font-bold text-slate-400 uppercase">${f.categoria}</td>
             <td class="py-3 px-2 text-xs font-black text-right ${f.tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-500'}">
@@ -1181,4 +1129,3 @@ function aplicarResultadoArea() {
     fecharCalculadoraArea();
 }
 
-checkUser();
