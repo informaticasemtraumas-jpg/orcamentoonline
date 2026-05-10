@@ -570,10 +570,21 @@ function atualizarDashboard(data, financeiro = []) {
         return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
     });
 
-    // 1. Receitas e despesas registradas no financeiro (inclui vendas diretas do catálogo)
-    const receitasMes = financeiroMes
-        .filter(f => f.tipo === 'ENTRADA')
+    const orcamentosEntreguesMes = data.filter(o => {
+        const d = new Date(o.created_at);
+        return o.status === 'Entregue' && d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
+    });
+
+    // 1. Receitas separadas: ajustes vêm de orçamentos entregues; vendas diretas vêm do financeiro
+    const receitasAjustesMes = orcamentosEntreguesMes
+        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+    const receitasVendasDiretasMes = financeiroMes
+        .filter(f => f.tipo === 'ENTRADA' && (
+            f.categoria === 'Venda Direta' ||
+            (f.categoria === 'Venda de Peças' && f.descricao?.startsWith('Venda direta:'))
+        ))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const receitasMes = receitasAjustesMes + receitasVendasDiretasMes;
     const despesasMes = financeiroMes
         .filter(f => f.tipo === 'SAIDA')
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
@@ -581,6 +592,12 @@ function atualizarDashboard(data, financeiro = []) {
     
     const dashReceitas = document.getElementById('dash-receitas');
     if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(receitasMes);
+
+    const dashAjustes = document.getElementById('dash-ajustes');
+    if (dashAjustes) dashAjustes.innerText = formatadorMoeda.format(receitasAjustesMes);
+
+    const dashVendasDiretas = document.getElementById('dash-vendas-diretas');
+    if (dashVendasDiretas) dashVendasDiretas.innerText = formatadorMoeda.format(receitasVendasDiretasMes);
 
     const dashDespesas = document.getElementById('dash-despesas');
     if (dashDespesas) dashDespesas.innerText = formatadorMoeda.format(despesasMes);
@@ -762,7 +779,7 @@ async function confirmarVenda() {
                 tipo: 'ENTRADA',
                 valor: valorTotal,
                 descricao: `Venda direta: ${vendaAtual.peca_nome} - ${cliente} (${pagamento})`,
-                categoria: 'Venda de Peças',
+                categoria: 'Venda Direta',
                 data_movimentacao: new Date().toISOString().split('T')[0],
                 referencia_id: vendaAtual.peca_id
             }]);
