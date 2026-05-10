@@ -225,6 +225,20 @@ function calcularTotalVenda() {
     document.getElementById('venda-total').innerText = formatadorMoeda.format(total);
 }
 
+async function registrarVendaDiretaFinanceiro(cliente, valorTotal) {
+    return supabaseClient
+        .from('financeiro')
+        .insert([{
+            user_id: currentUser.id,
+            tipo: 'ENTRADA',
+            valor: valorTotal,
+            descricao: `Venda direta: ${vendaAtual.peca_nome} (${cliente})`,
+            categoria: 'Venda Direta',
+            data_movimentacao: new Date().toISOString().split('T')[0],
+            referencia_id: vendaAtual.peca_id
+        }]);
+}
+
 async function confirmarVenda() {
     const cliente = document.getElementById('venda-cliente').value.trim() || 'Cliente Sem Nome';
     const quantidade = parseInt(document.getElementById('venda-quantidade').value) || 0;
@@ -254,17 +268,7 @@ async function confirmarVenda() {
         
         if (updateError) throw updateError;
 
-        const { error: finError } = await supabaseClient
-            .from('financeiro')
-            .insert([{
-                user_id: currentUser.id,
-                tipo: 'ENTRADA',
-                valor: valorTotal,
-                descricao: `Venda direta: ${vendaAtual.peca_nome} (${cliente})`,
-                categoria: 'Venda Direta',
-                data_movimentacao: new Date().toISOString().split('T')[0],
-                referencia_id: vendaAtual.peca_id
-            }]);
+        const { error: finError } = await registrarVendaDiretaFinanceiro(cliente, valorTotal);
 
         if (finError) {
             console.error(finError);
