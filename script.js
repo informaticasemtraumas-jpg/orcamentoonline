@@ -465,9 +465,15 @@ async function carregarHistorico() {
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
-    if (error) return;
+    const { data: financeiro, error: financeiroError } = await supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('data_movimentacao', { ascending: false });
+
+    if (error || financeiroError) return;
     
-    atualizarDashboard(data);
+    atualizarDashboard(data, financeiro);
     renderizarHistorico(data);
 }
 
@@ -552,23 +558,35 @@ async function excluirOrcamento(id) {
     if (error) showToast("Erro ao excluir", "error"); else carregarHistorico();
 }
 
-function atualizarDashboard(data) {
+function atualizarDashboard(data, financeiro = []) {
     if (!data) return;
 
+    const filtro = document.getElementById('filtro-mes-ano').value;
     const agora = new Date();
-    const mesAtual = agora.getMonth();
-    const anoAtual = agora.getFullYear();
+    const [anoFiltro, mesFiltro] = filtro ? filtro.split('-') : [agora.getFullYear(), agora.getMonth() + 1];
 
-    // 1. Receitas (Orçamentos com status "Entregue" no mês atual)
-    const faturamentoMes = data
-        .filter(o => {
-            const d = new Date(o.created_at);
-            return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-        })
-        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+    const financeiroMes = financeiro.filter(f => {
+        const d = new Date(f.data_movimentacao + 'T12:00:00');
+        return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
+    });
+
+    // 1. Receitas e despesas registradas no financeiro (inclui vendas diretas do catálogo)
+    const receitasMes = financeiroMes
+        .filter(f => f.tipo === 'ENTRADA')
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const despesasMes = financeiroMes
+        .filter(f => f.tipo === 'SAIDA')
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
+    const lucroMes = receitasMes - despesasMes;
     
     const dashReceitas = document.getElementById('dash-receitas');
-    if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(faturamentoMes);
+    if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(receitasMes);
+
+    const dashDespesas = document.getElementById('dash-despesas');
+    if (dashDespesas) dashDespesas.innerText = formatadorMoeda.format(despesasMes);
+
+    const dashLucro = document.getElementById('dash-lucro');
+    if (dashLucro) dashLucro.innerText = formatadorMoeda.format(lucroMes);
 
     // 2. A Receber (Orçamentos que ainda não foram entregues)
     const aReceber = data
@@ -736,10 +754,25 @@ async function confirmarVenda() {
             .eq('id', vendaAtual.peca_id);
         
         if (updateError) throw updateError;
+
+        const { error: financeiroError } = await supabaseClient
+            .from('financeiro')
+            .insert([{
+                user_id: currentUser.id,
+                tipo: 'ENTRADA',
+                valor: valorTotal,
+                descricao: `Venda direta: ${vendaAtual.peca_nome} - ${cliente} (${pagamento})`,
+                categoria: 'Venda de Peças',
+                data_movimentacao: new Date().toISOString().split('T')[0],
+                referencia_id: vendaAtual.peca_id
+            }]);
+
+        if (financeiroError) throw financeiroError;
         
         showToast(`Venda de ${quantidade} peça(s) registrada! Total: ${formatadorMoeda.format(valorTotal)}`);
         fecharModalVenda();
         carregarCatalogo();
+        carregarHistorico();
     } catch (err) {
         console.error(err);
         showToast("Erro ao processar venda", "error");
