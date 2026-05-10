@@ -845,6 +845,8 @@ function aplicarResultadoArea() {
         if (typeof calcularPrecoUnitarioMaterial === 'function') calcularPrecoUnitarioMaterial();
     } else if (origem === 'compra') {
         document.getElementById('compra-quantidade').value = resultado;
+    } else {
+        document.getElementById('peca-material-qtd').value = resultado;
     }
     fecharCalculadoraArea();
 }
