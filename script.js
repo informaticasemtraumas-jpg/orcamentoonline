@@ -270,22 +270,16 @@ function getStatusClasses(status) {
 async function carregarHistorico() {
     if (!currentUser) return;
     
-    const { data: orcamentos, error: orcError } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from('orcamentos')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
-    const { data: financeiro, error: finError } = await supabaseClient
-        .from('financeiro')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('data_movimentacao', { ascending: false });
-
-    if (orcError || finError) return;
+    if (error) return;
     
-    atualizarDashboard(orcamentos || [], financeiro || []);
-    renderizarHistorico(orcamentos || []);
+    atualizarDashboard(data);
+    renderizarHistorico(data);
 }
 
 function renderizarHistorico(data) {
@@ -369,67 +363,42 @@ async function excluirOrcamento(id) {
     if (error) showToast("Erro ao excluir", "error"); else carregarHistorico();
 }
 
-function atualizarDashboard(orcamentos, financeiro = []) {
-    if (!orcamentos) return;
+function atualizarDashboard(data) {
+    if (!data) return;
 
-    const filtro = document.getElementById('filtro-mes-ano')?.value;
-    const [anoFiltro, mesFiltro] = filtro
-        ? filtro.split('-')
-        : [new Date().getFullYear(), new Date().getMonth() + 1];
+    const agora = new Date();
+    const mesAtual = agora.getMonth();
+    const anoAtual = agora.getFullYear();
 
-    const estaNoPeriodo = (valorData) => {
-        const d = new Date(`${valorData}${String(valorData).includes('T') ? '' : 'T12:00:00'}`);
-        return d.getFullYear() == anoFiltro && (d.getMonth() + 1) == mesFiltro;
-    };
-
-    const financeiroMes = financeiro.filter(f => estaNoPeriodo(f.data_movimentacao));
-
-    // 1. Ajustes/Orçamentos: orçamentos entregues no período selecionado.
-    const ajustesOrcamentos = orcamentos
-        .filter(o => o.status === 'Entregue' && estaNoPeriodo(o.created_at))
+    // 1. Receitas (Orçamentos com status "Entregue" no mês atual)
+    const faturamentoMes = data
+        .filter(o => {
+            const d = new Date(o.created_at);
+            return o.status === 'Entregue' && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+        })
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+    
+    const dashReceitas = document.getElementById('dash-receitas');
+    if (dashReceitas) dashReceitas.innerText = formatadorMoeda.format(faturamentoMes);
 
-    // 2. Vendas Diretas: entradas financeiras gravadas pela venda direta de catálogo.
-    const vendasDiretas = financeiroMes
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
-        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
-
-    // 3. Receita Total: soma dos orçamentos entregues com as vendas diretas.
-    const receitaTotal = ajustesOrcamentos + vendasDiretas;
-    const despesas = financeiroMes
-        .filter(f => f.tipo === 'SAIDA')
-        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
-    const lucro = receitaTotal - despesas;
-
-    const setDashboardValue = (id, valor) => {
-        const element = document.getElementById(id);
-        if (element) element.innerText = formatadorMoeda.format(valor);
-    };
-
-    setDashboardValue('dash-ajustes', ajustesOrcamentos);
-    setDashboardValue('dash-vendas-diretas', vendasDiretas);
-    setDashboardValue('dash-receitas', receitaTotal);
-    setDashboardValue('dash-despesas', despesas);
-    setDashboardValue('dash-lucro', lucro);
-
-    // 4. A Receber (Orçamentos que ainda não foram entregues)
-    const aReceber = orcamentos
+    // 2. A Receber (Orçamentos que ainda não foram entregues)
+    const aReceber = data
         .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    setDashboardValue('dash-receber', aReceber);
+    
+    const dashReceber = document.getElementById('dash-receber');
+    if (dashReceber) dashReceber.innerText = formatadorMoeda.format(aReceber);
 
-    // 5. Total Geral (Soma de todos os orçamentos entregues + vendas diretas na história)
-    const totalGeralOrcamentos = orcamentos
+    // 3. Total Geral (Soma de todos os orçamentos entregues na história)
+    const totalGeral = data
         .filter(o => o.status === 'Entregue')
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
-    const totalGeralVendasDiretas = financeiro
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
-        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
-    setDashboardValue('dash-total', totalGeralOrcamentos + totalGeralVendasDiretas);
+    const dashTotal = document.getElementById('dash-total');
+    if (dashTotal) dashTotal.innerText = formatadorMoeda.format(totalGeral);
 
-    // 6. Gráfico de Status
+    // 4. Gráfico de Status
     const contagem = {};
-    orcamentos.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
+    data.forEach(o => { contagem[o.status] = (contagem[o.status] || 0) + 1; });
     const labels = Object.keys(contagem);
     const valores = Object.values(contagem);
     const coresGrafico = labels.map(l => {
@@ -443,8 +412,9 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         return map[l] || '#cbd5e1';
     });
 
-    const ctx = document.getElementById('statusChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('statusChart');
+    if (!canvas) return;
+
     if (statusChart) statusChart.destroy();
 
     if (labels.length === 0) {
@@ -452,7 +422,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         return;
     }
 
-    statusChart = new Chart(ctx, {
+    statusChart = new Chart(canvas, {
         type: 'doughnut',
         data: {
             labels,

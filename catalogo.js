@@ -253,35 +253,10 @@ async function confirmarVenda() {
             .eq('id', vendaAtual.peca_id);
         
         if (updateError) throw updateError;
-<<<<<<< HEAD
         
         showToast(`Venda de ${quantidade} peça(s) registrada! Total: ${formatadorMoeda.format(valorTotal)}`);
         fecharModalVenda();
         carregarCatalogo();
-=======
-
-        const { error: finError } = await supabaseClient
-            .from('financeiro')
-            .insert([{
-                user_id: currentUser.id,
-                tipo: 'ENTRADA',
-                valor: valorTotal,
-                descricao: `Venda direta: ${vendaAtual.peca_nome} (${cliente})`,
-                categoria: 'Venda Direta',
-                data_movimentacao: new Date().toISOString().split('T')[0],
-                referencia_id: vendaAtual.peca_id
-            }]);
-
-        if (finError) {
-            console.error(finError);
-            showToast("Estoque atualizado, mas erro ao registrar venda direta no financeiro.", "error");
-        } else {
-            showToast(`Venda de ${quantidade} peça(s) registrada! Total: ${formatadorMoeda.format(valorTotal)}`);
-        }
-        fecharModalVenda();
-        carregarCatalogo();
-        if (typeof carregarHistorico === 'function') carregarHistorico();
->>>>>>> 6580388 (Restaura cálculo do dashboard com vendas diretas)
     } catch (err) {
         console.error(err);
         showToast("Erro ao processar venda", "error");
