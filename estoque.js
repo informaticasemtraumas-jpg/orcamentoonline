@@ -280,7 +280,26 @@ async function salvarCompraMaterial() {
         descricao: fornecedor ? `Última compra: ${fornecedor}` : material.descricao
     }).eq('id', materialId);
     if (matError) return showToast("Erro ao atualizar estoque.", "error");
-    showToast("Compra registrada e estoque atualizado!");
+
+    const { error: finError } = await supabaseClient
+        .from('financeiro')
+        .insert([{
+            user_id: currentUser.id,
+            tipo: 'SAIDA',
+            valor: valorTotal,
+            descricao: `Compra: ${material.nome}${fornecedor ? ' (' + fornecedor + ')' : ''}`,
+            categoria: 'Compra de Materiais',
+            data_movimentacao: new Date().toISOString().split('T')[0],
+            referencia_id: materialId
+        }]);
+
+    if (finError) {
+        console.error(finError);
+        showToast("Estoque atualizado, mas erro no financeiro.", "error");
+    } else {
+        showToast("Compra registrada e estoque atualizado!");
+    }
     fecharModalCompra();
     carregarMateriais();
+    if (typeof carregarHistorico === 'function') carregarHistorico();
 }
