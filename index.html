@@ -373,9 +373,27 @@
                         <p id="caixa-total" class="text-3xl font-black text-emerald-300">R$ 0,00</p>
                     </div>
                 </div>
-                <button onclick="salvarCompraCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2">
-                    <i data-lucide="save" class="w-5 h-5"></i> SALVAR COMPRA
+                <button id="btn-salvar-compra-caixa" onclick="salvarCompraCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btn-salvar-compra-caixa-texto">SALVAR COMPRA</span>
                 </button>
+            </section>
+
+            <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800">Histórico de Compras</h3>
+                        <p class="text-xs text-slate-400 font-bold">Compras mais recentes registradas no Caixa.</p>
+                    </div>
+                    <button onclick="carregarHistoricoComprasCaixa()" class="px-5 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-5 h-5"></i> ATUALIZAR
+                    </button>
+                </div>
+                <div id="lista-compras-caixa" class="divide-y divide-slate-100">
+                    <!-- Histórico de compras via JS -->
+                </div>
+                <div id="caixa-detalhes-compra" class="hidden border-t border-slate-100 bg-slate-50 p-6">
+                    <!-- Detalhes da compra via JS -->
+                </div>
             </section>
         </div>
 

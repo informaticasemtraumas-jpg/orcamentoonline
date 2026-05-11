@@ -40,6 +40,7 @@ function iniciarCaixa() {
     }
 
     if (typeof carregarMateriais === 'function') carregarMateriais();
+    carregarHistoricoComprasCaixa();
 }
 
 function novaCompraCaixa(recarregar = true) {
@@ -198,7 +199,53 @@ function obterMaterialCompraCaixa(item) {
     return { materialExistente, novoNome };
 }
 
+let salvandoCompraCaixa = false;
+
+function caixaDefinirSalvando(salvando) {
+    salvandoCompraCaixa = salvando;
+    const botao = document.getElementById('btn-salvar-compra-caixa');
+    const texto = document.getElementById('btn-salvar-compra-caixa-texto');
+
+    if (botao) botao.disabled = salvando;
+    if (texto) texto.innerText = salvando ? 'SALVANDO...' : 'SALVAR COMPRA';
+}
+
+async function desfazerCompraCaixa({ compraId, financeiroId, materiaisOriginais = [], materiaisCriados = [] }) {
+    if (financeiroId) {
+        const { error } = await supabaseClient.from('financeiro').delete().eq('id', financeiroId);
+        if (error) console.error('Erro ao remover financeiro no rollback do Caixa:', error);
+    }
+
+    if (compraId) {
+        const { error: itensError } = await supabaseClient.from('compras_itens').delete().eq('compra_id', compraId);
+        if (itensError) console.error('Erro ao remover itens no rollback do Caixa:', itensError);
+    }
+
+    for (const material of materiaisOriginais.reverse()) {
+        const { error } = await supabaseClient
+            .from('materiais')
+            .update({
+                quantidade: material.quantidade,
+                preco_unitario: material.preco_unitario,
+                descricao: material.descricao,
+            })
+            .eq('id', material.id);
+        if (error) console.error('Erro ao restaurar material no rollback do Caixa:', error);
+    }
+
+    for (const materialId of materiaisCriados.reverse()) {
+        const { error } = await supabaseClient.from('materiais').delete().eq('id', materialId);
+        if (error) console.error('Erro ao remover material criado no rollback do Caixa:', error);
+    }
+
+    if (compraId) {
+        const { error: compraError } = await supabaseClient.from('compras').delete().eq('id', compraId);
+        if (compraError) console.error('Erro ao remover compra no rollback do Caixa:', compraError);
+    }
+}
+
 async function salvarCompraCaixa() {
+    if (salvandoCompraCaixa) return showToast('A compra já está sendo salva. Aguarde finalizar.', 'error');
     if (!currentUser) return showToast('Faça login para registrar compras.', 'error');
 
     const fornecedor = document.getElementById('caixa-fornecedor').value.trim();
@@ -221,104 +268,113 @@ async function salvarCompraCaixa() {
         itensValidos.push({ ...item, materialExistente, novoNome, valor_total: item.quantidade * item.valor_unitario });
     }
 
-    const compraPayload = {
-        user_id: currentUser.id,
-        fornecedor,
-        numero_nota: numero_nota || null,
-        data_compra,
-        forma_pagamento,
-        desconto: totais.desconto,
-        valor_total: totais.total,
-        observacoes: observacoes || null,
-    };
+    caixaDefinirSalvando(true);
 
-    const { data: compra, error: compraError } = await supabaseClient
-        .from('compras')
-        .insert([compraPayload])
-        .select()
-        .single();
-
-    if (compraError) {
-        console.error('Erro ao salvar compra:', compraError);
-        return showToast('Erro ao salvar compra.', 'error');
-    }
-
-    if (!caixaEhUuid(compra?.id)) {
-        console.error('Compra salva sem UUID válido para compras_itens:', compra);
-        return showToast('Compra salva, mas o ID retornado não é um UUID válido para salvar os itens.', 'error');
-    }
-
+    let compraId = null;
+    let financeiroId = null;
     let referenciaFinanceiraId = null;
+    const materiaisOriginais = [];
+    const materiaisOriginaisIds = new Set();
+    const materiaisCriados = [];
 
-    for (const item of itensValidos) {
-        let materialId = item.materialExistente?.id;
-        let materialNome = item.materialExistente?.nome || item.novoNome;
+    try {
+        const compraPayload = {
+            user_id: currentUser.id,
+            fornecedor,
+            numero_nota: numero_nota || null,
+            data_compra,
+            forma_pagamento,
+            desconto: totais.desconto,
+            valor_total: totais.total,
+            observacoes: observacoes || null,
+        };
 
-        if (item.materialExistente) {
-            const novaQuantidade = (parseFloat(item.materialExistente.quantidade) || 0) + item.quantidade;
-            const { error: materialError } = await supabaseClient
-                .from('materiais')
-                .update({
-                    quantidade: novaQuantidade,
-                    preco_unitario: item.valor_unitario,
-                    descricao: fornecedor ? `Última compra: ${fornecedor}` : item.materialExistente.descricao,
-                })
-                .eq('id', materialId);
+        const { data: compra, error: compraError } = await supabaseClient
+            .from('compras')
+            .insert([compraPayload])
+            .select()
+            .single();
 
-            if (materialError) {
-                console.error('Erro ao atualizar material:', materialError);
-                return showToast(`Compra criada, mas erro ao atualizar estoque de ${materialNome}.`, 'error');
+        if (compraError) throw new Error('Erro ao salvar compra.');
+        if (!caixaEhUuid(compra?.id)) throw new Error('Compra salva, mas o ID retornado não é um UUID válido para salvar os itens.');
+
+        compraId = compra.id;
+
+        for (const item of itensValidos) {
+            let materialId = item.materialExistente?.id;
+            let materialNome = item.materialExistente?.nome || item.novoNome;
+
+            if (item.materialExistente) {
+                if (!materiaisOriginaisIds.has(item.materialExistente.id)) {
+                    materiaisOriginaisIds.add(item.materialExistente.id);
+                    materiaisOriginais.push({
+                        id: item.materialExistente.id,
+                        quantidade: item.materialExistente.quantidade,
+                        preco_unitario: item.materialExistente.preco_unitario,
+                        descricao: item.materialExistente.descricao,
+                    });
+                }
+
+                const novaQuantidade = (parseFloat(item.materialExistente.quantidade) || 0) + item.quantidade;
+                const { error: materialError } = await supabaseClient
+                    .from('materiais')
+                    .update({
+                        quantidade: novaQuantidade,
+                        preco_unitario: item.valor_unitario,
+                        descricao: fornecedor ? `Última compra: ${fornecedor}` : item.materialExistente.descricao,
+                    })
+                    .eq('id', materialId);
+
+                if (materialError) throw new Error(`Erro ao atualizar estoque de ${materialNome}.`);
+
+                item.materialExistente.quantidade = novaQuantidade;
+                item.materialExistente.preco_unitario = item.valor_unitario;
+                item.materialExistente.descricao = fornecedor ? `Última compra: ${fornecedor}` : item.materialExistente.descricao;
+            } else {
+                const { data: novoMaterial, error: novoMaterialError } = await supabaseClient
+                    .from('materiais')
+                    .insert([{
+                        user_id: currentUser.id,
+                        nome: item.novoNome,
+                        descricao: fornecedor ? `Criado via Caixa. Última compra: ${fornecedor}` : 'Criado via Caixa',
+                        quantidade: item.quantidade,
+                        unidade: item.unidade || 'unidades',
+                        preco_unitario: item.valor_unitario,
+                    }])
+                    .select()
+                    .single();
+
+                if (novoMaterialError) throw new Error(`Erro ao criar material ${item.novoNome}.`);
+
+                materialId = novoMaterial.id;
+                materialNome = novoMaterial.nome;
+                materiaisCriados.push(materialId);
             }
-        } else {
-            const { data: novoMaterial, error: novoMaterialError } = await supabaseClient
-                .from('materiais')
-                .insert([{
-                    user_id: currentUser.id,
-                    nome: item.novoNome,
-                    descricao: fornecedor ? `Criado via Caixa. Última compra: ${fornecedor}` : 'Criado via Caixa',
-                    quantidade: item.quantidade,
-                    unidade: item.unidade || 'unidades',
-                    preco_unitario: item.valor_unitario,
-                }])
-                .select()
-                .single();
 
-            if (novoMaterialError) {
-                console.error('Erro ao criar material:', novoMaterialError);
-                return showToast(`Compra criada, mas erro ao criar material ${item.novoNome}.`, 'error');
+            if (!caixaEhIdNumerico(materialId)) {
+                console.error('Material sem ID numérico para compras_itens:', { materialId, materialNome, item });
+                throw new Error(`O material "${materialNome}" não possui ID numérico válido para salvar o item da compra.`);
             }
 
-            materialId = novoMaterial.id;
-            materialNome = novoMaterial.nome;
-        }
+            if (!referenciaFinanceiraId) referenciaFinanceiraId = materialId;
 
-        if (!caixaEhIdNumerico(materialId)) {
-            console.error('Material sem ID numérico para compras_itens:', { materialId, materialNome, item });
-            return showToast(`O material "${materialNome}" não possui ID numérico válido para salvar o item da compra.`, 'error');
-        }
-
-        if (!referenciaFinanceiraId) referenciaFinanceiraId = materialId;
-
-        const { error: itemError } = await supabaseClient
-            .from('compras_itens')
-            .insert([{
-                compra_id: compra.id,
+            const itemPayload = {
+                compra_id: compraId,
                 material_id: materialId,
                 descricao: materialNome,
                 quantidade: item.quantidade,
                 valor_unitario: item.valor_unitario,
                 valor_total: item.valor_total,
-            }]);
+            };
 
-        if (itemError) {
-            console.error('Erro ao salvar item da compra:', itemError);
-            return showToast(`Compra criada, mas erro ao salvar item ${materialNome}.`, 'error');
+            const { error: itemError } = await supabaseClient
+                .from('compras_itens')
+                .insert([itemPayload]);
+
+            if (itemError) throw new Error(`Erro ao salvar item ${materialNome}.`);
         }
-    }
 
-    const { error: finError } = await supabaseClient
-        .from('financeiro')
-        .insert([{
+        const financeiroPayload = {
             user_id: currentUser.id,
             tipo: 'SAIDA',
             valor: totais.total,
@@ -326,16 +382,152 @@ async function salvarCompraCaixa() {
             categoria: 'Compra de Materiais',
             data_movimentacao: data_compra,
             referencia_id: referenciaFinanceiraId,
-        }]);
+        };
 
-    if (finError) {
-        console.error('Erro ao registrar financeiro:', finError);
-        showToast('Compra e estoque salvos, mas houve erro ao registrar o financeiro.', 'error');
-    } else {
+        const { data: financeiro, error: finError } = await supabaseClient
+            .from('financeiro')
+            .insert([financeiroPayload])
+            .select('id')
+            .single();
+
+        if (finError) throw new Error('Erro ao registrar saída no financeiro.');
+        financeiroId = financeiro?.id || null;
+
         showToast('Compra registrada, estoque atualizado e saída lançada no financeiro!');
+
+        if (typeof carregarMateriais === 'function') await carregarMateriais();
+        if (typeof carregarHistorico === 'function') await carregarHistorico();
+        await carregarHistoricoComprasCaixa();
+        novaCompraCaixa(false);
+    } catch (err) {
+        console.error('Erro ao salvar compra no Caixa:', err);
+        await desfazerCompraCaixa({ compraId, financeiroId, materiaisOriginais, materiaisCriados });
+        showToast(`${err.message || 'Erro ao salvar compra.'} A compra foi desfeita para evitar registros órfãos.`, 'error');
+    } finally {
+        caixaDefinirSalvando(false);
+    }
+}
+
+async function carregarHistoricoComprasCaixa() {
+    const container = document.getElementById('lista-compras-caixa');
+    const detalhes = document.getElementById('caixa-detalhes-compra');
+    if (!container || !currentUser) return;
+
+    container.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">Carregando compras...</div>';
+    if (detalhes) detalhes.classList.add('hidden');
+
+    const { data: compras, error } = await supabaseClient
+        .from('compras')
+        .select('id, fornecedor, data_compra, valor_total, forma_pagamento')
+        .eq('user_id', currentUser.id)
+        .order('data_compra', { ascending: false });
+
+    if (error) {
+        console.error('Erro ao carregar histórico de compras:', error);
+        container.innerHTML = '<div class="p-6 text-center text-red-400 font-bold">Erro ao carregar histórico de compras.</div>';
+        return;
     }
 
-    if (typeof carregarMateriais === 'function') await carregarMateriais();
-    if (typeof carregarHistorico === 'function') await carregarHistorico();
-    novaCompraCaixa(false);
+    if (!compras || compras.length === 0) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">Nenhuma compra registrada ainda.</div>';
+        return;
+    }
+
+    const compraIds = compras.map(compra => compra.id);
+    const { data: itens, error: itensError } = await supabaseClient
+        .from('compras_itens')
+        .select('compra_id')
+        .in('compra_id', compraIds);
+
+    if (itensError) console.error('Erro ao contar itens das compras:', itensError);
+
+    const contagemItens = (itens || []).reduce((acc, item) => {
+        acc[item.compra_id] = (acc[item.compra_id] || 0) + 1;
+        return acc;
+    }, {});
+
+    container.innerHTML = compras.map(compra => `
+        <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50 transition-all">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</p>
+                    <p class="font-black text-slate-800">${caixaEscapeHtml(compra.fornecedor || 'Sem fornecedor')}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</p>
+                    <p class="font-bold text-slate-600">${formatDate(compra.data_compra + 'T12:00:00')}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</p>
+                    <p class="font-black text-emerald-600">${formatadorMoeda.format(compra.valor_total || 0)}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens</p>
+                    <p class="font-bold text-slate-600">${contagemItens[compra.id] || 0}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagamento</p>
+                    <p class="font-bold text-slate-600">${caixaEscapeHtml(compra.forma_pagamento || '-')}</p>
+                </div>
+            </div>
+            <button onclick="abrirDetalhesCompraCaixa('${compra.id}')" class="px-5 py-3 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="eye" class="w-5 h-5"></i> VER DETALHES
+            </button>
+        </div>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+}
+
+async function abrirDetalhesCompraCaixa(compraId) {
+    const detalhes = document.getElementById('caixa-detalhes-compra');
+    if (!detalhes) return;
+
+    detalhes.classList.remove('hidden');
+    detalhes.innerHTML = '<div class="text-center text-slate-400 font-bold">Carregando itens da compra...</div>';
+
+    const { data: itens, error } = await supabaseClient
+        .from('compras_itens')
+        .select('descricao, quantidade, valor_unitario, valor_total')
+        .eq('compra_id', compraId)
+        .order('id', { ascending: true });
+
+    if (error) {
+        console.error('Erro ao carregar detalhes da compra:', error);
+        detalhes.innerHTML = '<div class="text-center text-red-400 font-bold">Erro ao carregar itens da compra.</div>';
+        return;
+    }
+
+    detalhes.innerHTML = `
+        <div class="flex items-center justify-between gap-4 mb-4">
+            <h4 class="text-lg font-black text-slate-800">Detalhes da Compra</h4>
+            <button onclick="document.getElementById('caixa-detalhes-compra').classList.add('hidden')" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-white transition-all">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="overflow-x-auto bg-white border border-slate-100 rounded-2xl">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Unit.</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(itens || []).map(item => `
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-4 py-3 font-bold text-slate-700">${caixaEscapeHtml(item.descricao || '-')}</td>
+                            <td class="px-4 py-3 text-right font-bold text-slate-600">${parseFloat(item.quantidade || 0).toFixed(4).replace(/\.0+$/, '')}</td>
+                            <td class="px-4 py-3 text-right font-bold text-slate-600">${formatadorMoeda.format(item.valor_unitario || 0)}</td>
+                            <td class="px-4 py-3 text-right font-black text-emerald-600">${formatadorMoeda.format(item.valor_total || 0)}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400 font-bold">Nenhum item encontrado.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    if (window.lucide) lucide.createIcons();
 }
