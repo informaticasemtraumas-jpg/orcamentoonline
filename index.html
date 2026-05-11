@@ -76,6 +76,9 @@
             <button id="tab-estoque" onclick="switchTab('estoque')" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
                 Estoque
             </button>
+            <button id="tab-caixa" onclick="switchTab('caixa')" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
+                Caixa
+            </button>
             <button id="tab-historico" onclick="switchTab('historico')" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all text-slate-500 hover:bg-white/50 whitespace-nowrap">
                 Gestão & Dashboard
             </button>
@@ -286,6 +289,94 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- VIEW: CAIXA -->
+        <div id="view-caixa" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Módulo Caixa</p>
+                    <h2 class="text-2xl font-black text-slate-800">Nova Compra de Materiais</h2>
+                    <p class="text-sm text-slate-400 font-bold">Registre uma compra com vários itens e atualize estoque/financeiro em um único lançamento.</p>
+                </div>
+                <button onclick="novaCompraCaixa()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i> LIMPAR
+                </button>
+            </div>
+
+            <section class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fornecedor</label>
+                        <input type="text" id="caixa-fornecedor" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome do fornecedor">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nº da Nota (opcional)</label>
+                        <input type="text" id="caixa-numero-nota" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="NF, cupom ou recibo">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data</label>
+                        <input type="date" id="caixa-data" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
+                        <select id="caixa-forma-pagamento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Pix">Pix</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Boleto">Boleto</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Desconto Geral (R$)</label>
+                        <input type="number" id="caixa-desconto" value="0" min="0" step="0.01" oninput="calcularTotaisCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
+                        <input type="text" id="caixa-observacoes" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Opcional">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800">Itens da Compra</h3>
+                        <p class="text-xs text-slate-400 font-bold">Selecione um material já cadastrado ou digite o nome de um novo material.</p>
+                    </div>
+                    <button onclick="adicionarItemCompraCaixa()" class="px-5 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
+                        <i data-lucide="plus" class="w-5 h-5"></i> ADICIONAR ITEM
+                    </button>
+                </div>
+                <div id="caixa-itens" class="divide-y divide-slate-100">
+                    <!-- Itens da compra via JS -->
+                </div>
+            </section>
+
+            <section class="bg-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col lg:flex-row justify-between gap-6 lg:items-center">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 flex-1">
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</p>
+                        <p id="caixa-subtotal" class="text-2xl font-black">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Desconto</p>
+                        <p id="caixa-desconto-exibir" class="text-2xl font-black text-red-300">- R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total da Compra</p>
+                        <p id="caixa-total" class="text-3xl font-black text-emerald-300">R$ 0,00</p>
+                    </div>
+                </div>
+                <button onclick="salvarCompraCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5"></i> SALVAR COMPRA
+                </button>
+            </section>
         </div>
 
         <!-- VIEW: GESTÃO & DASHBOARD -->

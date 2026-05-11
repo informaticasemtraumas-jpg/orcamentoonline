@@ -17,6 +17,7 @@ async function carregarMateriais() {
     materiais = data || [];
     renderizarListaEstoque();
     atualizarSelectMateriais();
+    if (typeof caixaAtualizarSelectsMateriais === 'function') caixaAtualizarSelectsMateriais();
 }
 
 function atualizarSelectMateriais() {

@@ -16,6 +16,7 @@ let complexidadeNome = "Padrão";
 let currentUser = null;
 let statusChart = null;
 let materiais = [];
+let itensCompraCaixa = [];
 
 // Configurações Financeiras (Padrão)
 let configFinanceira = {
@@ -29,6 +30,7 @@ let configFinanceira = {
 // As funções de estoque ficam em estoque.js e são carregadas sem alterar o HTML.
 document.write('<script src="estoque.js"></script>');
 document.write('<script src="catalogo.js"></script>');
+document.write('<script src="caixa.js"></script>');
 
 // ====================== MINI CALCULADORA DE ÁREA ======================
 
@@ -101,8 +103,8 @@ function carregarConfigFinanceira() {
 // ====================== NAVEGAÇÃO ======================
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-config'];
-    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-config'];
+    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-caixa', 'view-historico', 'view-config'];
+    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-caixa', 'tab-historico', 'tab-config'];
     
     views.forEach(v => {
         const el = document.getElementById(v);
@@ -129,6 +131,7 @@ function switchTab(tab) {
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
     if (tab === 'catalogo') carregarCatalogo();
+    if (tab === 'caixa' && typeof iniciarCaixa === 'function') iniciarCaixa();
 }
 
 // --- ORÇAMENTO ---
