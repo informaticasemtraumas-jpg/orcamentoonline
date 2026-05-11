@@ -219,7 +219,6 @@ async function salvarCompraCaixa() {
         numero_nota: numero_nota || null,
         data_compra,
         forma_pagamento,
-        subtotal: totais.subtotal,
         desconto: totais.desconto,
         total: totais.total,
         observacoes: observacoes || null,
