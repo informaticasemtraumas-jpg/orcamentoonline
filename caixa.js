@@ -220,6 +220,7 @@ async function salvarCompraCaixa() {
         data_compra,
         forma_pagamento,
         desconto: totais.desconto,
+        valor_total: totais.total,
         observacoes: observacoes || null,
     };
 
@@ -279,10 +280,9 @@ async function salvarCompraCaixa() {
         const { error: itemError } = await supabaseClient
             .from('compras_itens')
             .insert([{
-                user_id: currentUser.id,
                 compra_id: compra.id,
                 material_id: materialId,
-                material_nome: materialNome,
+                descricao: materialNome,
                 quantidade: item.quantidade,
                 valor_unitario: item.valor_unitario,
                 valor_total: item.valor_total,
