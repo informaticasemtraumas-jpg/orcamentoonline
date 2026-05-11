@@ -220,7 +220,6 @@ async function salvarCompraCaixa() {
         data_compra,
         forma_pagamento,
         desconto: totais.desconto,
-        total: totais.total,
         observacoes: observacoes || null,
     };
 
