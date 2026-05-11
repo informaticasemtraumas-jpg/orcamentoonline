@@ -61,6 +61,8 @@ function aplicarResultadoArea() {
     if (origem === 'material') {
         document.getElementById('material-quantidade').value = resultado;
         calcularPrecoUnitarioMaterial();
+    } else if (origem === 'caixa' && typeof aplicarResultadoAreaCaixaItem === 'function') {
+        aplicarResultadoAreaCaixaItem(resultado);
     } else {
         document.getElementById('peca-material-qtd').value = resultado;
     }
@@ -611,6 +613,8 @@ function aplicarResultadoArea() {
         if (typeof calcularPrecoUnitarioMaterial === 'function') calcularPrecoUnitarioMaterial();
     } else if (origem === 'compra') {
         document.getElementById('compra-quantidade').value = resultado;
+    } else if (origem === 'caixa' && typeof aplicarResultadoAreaCaixaItem === 'function') {
+        aplicarResultadoAreaCaixaItem(resultado);
     } else {
         document.getElementById('peca-material-qtd').value = resultado;
     }

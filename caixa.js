@@ -68,6 +68,28 @@ function caixaAtualizarSelectsMateriais() {
     renderizarItensCompraCaixa();
 }
 
+let itemCompraCaixaCalculadoraId = null;
+
+function abrirCalculadoraAreaCaixaItem(id) {
+    itemCompraCaixaCalculadoraId = id;
+
+    if (typeof abrirCalculadoraAreaCompra === 'function') {
+        abrirCalculadoraAreaCompra();
+    } else if (typeof abrirCalculadoraAreaMaterial === 'function') {
+        abrirCalculadoraAreaMaterial();
+    }
+
+    const origem = document.getElementById('calc-origem');
+    if (origem) origem.value = 'caixa';
+}
+
+function aplicarResultadoAreaCaixaItem(resultado) {
+    if (!itemCompraCaixaCalculadoraId) return;
+    atualizarItemCompraCaixa(itemCompraCaixaCalculadoraId, 'quantidade', resultado);
+    renderizarItensCompraCaixa();
+    itemCompraCaixaCalculadoraId = null;
+}
+
 function criarItemCompraCaixa() {
     return {
         id: Date.now() + Math.floor(Math.random() * 1000),
@@ -155,6 +177,7 @@ function renderizarItensCompraCaixa() {
                 <div class="lg:col-span-1 space-y-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Qtd</label>
                     <input type="number" min="0" step="0.0001" value="${item.quantidade}" oninput="atualizarItemCompraCaixa(${item.id}, 'quantidade', this.value)" class="w-full p-3 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700 text-sm">
+                    <button type="button" onclick="abrirCalculadoraAreaCaixaItem(${item.id})" class="w-full mt-2 px-2 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all text-[10px] font-black" title="Usar calculadora de área">CALCULAR</button>
                 </div>
                 <div class="lg:col-span-1 space-y-1">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit.</label>
