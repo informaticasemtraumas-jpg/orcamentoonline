@@ -22,6 +22,10 @@ function caixaEhUuid(valor) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(valor || '').trim());
 }
 
+function caixaEhIdNumerico(valor) {
+    return /^\d+$/.test(String(valor ?? '').trim());
+}
+
 function iniciarCaixa() {
     if (!document.getElementById('caixa-data')) return;
 
@@ -244,6 +248,8 @@ async function salvarCompraCaixa() {
         return showToast('Compra salva, mas o ID retornado não é um UUID válido para salvar os itens.', 'error');
     }
 
+    let referenciaFinanceiraId = null;
+
     for (const item of itensValidos) {
         let materialId = item.materialExistente?.id;
         let materialNome = item.materialExistente?.nome || item.novoNome;
@@ -286,10 +292,12 @@ async function salvarCompraCaixa() {
             materialNome = novoMaterial.nome;
         }
 
-        if (materialId === null || materialId === undefined || materialId === '') {
-            console.error('Material sem ID para compras_itens:', { materialId, materialNome, item });
-            return showToast(`O material "${materialNome}" não possui ID válido para salvar o item da compra.`, 'error');
+        if (!caixaEhIdNumerico(materialId)) {
+            console.error('Material sem ID numérico para compras_itens:', { materialId, materialNome, item });
+            return showToast(`O material "${materialNome}" não possui ID numérico válido para salvar o item da compra.`, 'error');
         }
+
+        if (!referenciaFinanceiraId) referenciaFinanceiraId = materialId;
 
         const { error: itemError } = await supabaseClient
             .from('compras_itens')
@@ -317,7 +325,7 @@ async function salvarCompraCaixa() {
             descricao: `Compra de materiais${fornecedor ? ' - ' + fornecedor : ''}`,
             categoria: 'Compra de Materiais',
             data_movimentacao: data_compra,
-            referencia_id: compra.id,
+            referencia_id: referenciaFinanceiraId,
         }]);
 
     if (finError) {
