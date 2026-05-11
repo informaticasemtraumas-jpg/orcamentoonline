@@ -212,10 +212,6 @@ async function salvarCompraCaixa() {
     for (const item of itensCompraCaixa) {
         const { materialExistente, novoNome } = obterMaterialCompraCaixa(item);
         if (!materialExistente && !novoNome) return showToast('Selecione um material existente ou digite um novo material em todos os itens.', 'error');
-        if (materialExistente && !caixaEhUuid(materialExistente.id)) {
-            console.error('Material existente sem UUID válido para compras_itens:', materialExistente);
-            return showToast(`O material "${materialExistente.nome}" não possui UUID válido. Recarregue o estoque ou corrija o cadastro antes de salvar.`, 'error');
-        }
         if ((item.quantidade || 0) <= 0) return showToast('Informe quantidade maior que zero em todos os itens.', 'error');
         if ((item.valor_unitario || 0) <= 0) return showToast('Informe valor unitário maior que zero em todos os itens.', 'error');
         itensValidos.push({ ...item, materialExistente, novoNome, valor_total: item.quantidade * item.valor_unitario });
@@ -290,9 +286,9 @@ async function salvarCompraCaixa() {
             materialNome = novoMaterial.nome;
         }
 
-        if (!caixaEhUuid(materialId)) {
-            console.error('Material sem UUID válido para compras_itens:', { materialId, materialNome, item });
-            return showToast(`O material "${materialNome}" não possui UUID válido para salvar o item da compra.`, 'error');
+        if (materialId === null || materialId === undefined || materialId === '') {
+            console.error('Material sem ID para compras_itens:', { materialId, materialNome, item });
+            return showToast(`O material "${materialNome}" não possui ID válido para salvar o item da compra.`, 'error');
         }
 
         const { error: itemError } = await supabaseClient
