@@ -211,7 +211,7 @@ function calcularTotaisCaixa() {
 
     if (subtotalEl) subtotalEl.innerText = formatadorMoeda.format(subtotal);
     if (descontoEl) descontoEl.innerText = `- ${formatadorMoeda.format(desconto)}`;
-    if (totalEl) totalEl.innerText = formatadorMoeda.format(total);
+    if (totalEl) totalEl.innerText = `- ${formatadorMoeda.format(total)}`;
 
     return { subtotal, desconto, total };
 }
@@ -481,8 +481,8 @@ async function carregarHistoricoComprasCaixa() {
                     <p class="font-bold text-slate-600">${formatDate(compra.data_compra + 'T12:00:00')}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</p>
-                    <p class="font-black text-emerald-600">${formatadorMoeda.format(compra.valor_total || 0)}</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saída</p>
+                    <p class="font-black text-red-500">- ${formatadorMoeda.format(compra.valor_total || 0)}</p>
                 </div>
                 <div>
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens</p>
@@ -493,13 +493,142 @@ async function carregarHistoricoComprasCaixa() {
                     <p class="font-bold text-slate-600">${caixaEscapeHtml(compra.forma_pagamento || '-')}</p>
                 </div>
             </div>
-            <button onclick="abrirDetalhesCompraCaixa('${compra.id}')" class="px-5 py-3 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
-                <i data-lucide="eye" class="w-5 h-5"></i> VER DETALHES
-            </button>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button onclick="abrirDetalhesCompraCaixa('${compra.id}')" class="px-5 py-3 bg-indigo-50 text-indigo-600 font-black rounded-2xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="eye" class="w-5 h-5"></i> VER DETALHES
+                </button>
+                <button onclick="excluirCompraCaixa('${compra.id}')" class="px-5 py-3 bg-red-50 text-red-600 font-black rounded-2xl hover:bg-red-100 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i> EXCLUIR
+                </button>
+            </div>
         </div>
     `).join('');
 
     if (window.lucide) lucide.createIcons();
+}
+
+
+async function excluirCompraCaixa(compraId) {
+    if (!currentUser) return showToast('Faça login para excluir compras.', 'error');
+    if (!confirm('Excluir esta compra? O estoque será revertido e o lançamento financeiro vinculado será removido.')) return;
+
+    const { data: compra, error: compraError } = await supabaseClient
+        .from('compras')
+        .select('*')
+        .eq('id', compraId)
+        .eq('user_id', currentUser.id)
+        .single();
+
+    if (compraError || !compra) {
+        console.error('Erro ao buscar compra para exclusão:', compraError);
+        return showToast('Não foi possível localizar a compra para excluir.', 'error');
+    }
+
+    const { data: itens, error: itensError } = await supabaseClient
+        .from('compras_itens')
+        .select('*')
+        .eq('compra_id', compraId);
+
+    if (itensError) {
+        console.error('Erro ao buscar itens da compra para exclusão:', itensError);
+        return showToast('Não foi possível carregar os itens da compra para reverter o estoque.', 'error');
+    }
+
+    const descricaoFinanceira = `Compra de materiais${compra.fornecedor ? ' - ' + compra.fornecedor : ''}`;
+    const referenciaFinanceiraId = (itens || []).find(item => caixaEhIdNumerico(item.material_id))?.material_id || null;
+    let financeiroQuery = supabaseClient
+        .from('financeiro')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('tipo', 'SAIDA')
+        .eq('categoria', 'Compra de Materiais')
+        .eq('descricao', descricaoFinanceira)
+        .eq('valor', compra.valor_total)
+        .eq('data_movimentacao', compra.data_compra);
+
+    if (referenciaFinanceiraId !== null) financeiroQuery = financeiroQuery.eq('referencia_id', referenciaFinanceiraId);
+
+    const { data: financeiros, error: financeiroBuscaError } = await financeiroQuery;
+    if (financeiroBuscaError) {
+        console.error('Erro ao buscar financeiro da compra:', financeiroBuscaError);
+        return showToast('Não foi possível localizar o lançamento financeiro da compra.', 'error');
+    }
+
+    const materiaisOriginais = [];
+    const itensExcluidos = itens || [];
+    const financeirosExcluidos = financeiros || [];
+    let estoqueRevertido = false;
+    let itensRemovidos = false;
+    let financeirosRemovidos = false;
+
+    try {
+        for (const item of itensExcluidos) {
+            const { data: material, error: materialError } = await supabaseClient
+                .from('materiais')
+                .select('id, quantidade, preco_unitario, descricao')
+                .eq('id', item.material_id)
+                .single();
+
+            if (materialError || !material) throw new Error(`Erro ao localizar material ${item.descricao || item.material_id}.`);
+
+            materiaisOriginais.push(material);
+            const quantidadeAtual = parseFloat(material.quantidade) || 0;
+            const quantidadeCompra = parseFloat(item.quantidade) || 0;
+            const novaQuantidade = Math.max(0, quantidadeAtual - quantidadeCompra);
+
+            const { error: updateError } = await supabaseClient
+                .from('materiais')
+                .update({ quantidade: novaQuantidade })
+                .eq('id', item.material_id);
+
+            if (updateError) throw new Error(`Erro ao reverter estoque de ${item.descricao || 'material'}.`);
+        }
+        estoqueRevertido = true;
+
+        const { error: deleteItensError } = await supabaseClient
+            .from('compras_itens')
+            .delete()
+            .eq('compra_id', compraId);
+        if (deleteItensError) throw new Error('Erro ao remover itens da compra.');
+        itensRemovidos = true;
+
+        for (const financeiro of financeirosExcluidos) {
+            const { error: deleteFinError } = await supabaseClient
+                .from('financeiro')
+                .delete()
+                .eq('id', financeiro.id);
+            if (deleteFinError) throw new Error('Erro ao remover lançamento financeiro da compra.');
+        }
+        financeirosRemovidos = true;
+
+        const { error: deleteCompraError } = await supabaseClient
+            .from('compras')
+            .delete()
+            .eq('id', compraId)
+            .eq('user_id', currentUser.id);
+        if (deleteCompraError) throw new Error('Erro ao remover compra.');
+
+        showToast('Compra excluída, estoque revertido e financeiro removido.');
+        if (typeof carregarMateriais === 'function') await carregarMateriais();
+        if (typeof carregarHistorico === 'function') await carregarHistorico();
+        await carregarHistoricoComprasCaixa();
+    } catch (err) {
+        console.error('Erro ao excluir compra no Caixa:', err);
+
+        if (estoqueRevertido) {
+            for (const material of materiaisOriginais.reverse()) {
+                await supabaseClient
+                    .from('materiais')
+                    .update({ quantidade: material.quantidade, preco_unitario: material.preco_unitario, descricao: material.descricao })
+                    .eq('id', material.id);
+            }
+        }
+
+        if (itensRemovidos && itensExcluidos.length > 0) await supabaseClient.from('compras_itens').insert(itensExcluidos);
+        if (financeirosRemovidos && financeirosExcluidos.length > 0) await supabaseClient.from('financeiro').insert(financeirosExcluidos);
+
+        showToast(`${err.message || 'Erro ao excluir compra.'} A exclusão foi revertida quando possível.`, 'error');
+    }
 }
 
 async function abrirDetalhesCompraCaixa(compraId) {
@@ -544,7 +673,7 @@ async function abrirDetalhesCompraCaixa(compraId) {
                             <td class="px-4 py-3 font-bold text-slate-700">${caixaEscapeHtml(item.descricao || '-')}</td>
                             <td class="px-4 py-3 text-right font-bold text-slate-600">${parseFloat(item.quantidade || 0).toFixed(4).replace(/\.0+$/, '')}</td>
                             <td class="px-4 py-3 text-right font-bold text-slate-600">${formatadorMoeda.format(item.valor_unitario || 0)}</td>
-                            <td class="px-4 py-3 text-right font-black text-emerald-600">${formatadorMoeda.format(item.valor_total || 0)}</td>
+                            <td class="px-4 py-3 text-right font-black text-red-500">- ${formatadorMoeda.format(item.valor_total || 0)}</td>
                         </tr>
                     `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400 font-bold">Nenhum item encontrado.</td></tr>'}
                 </tbody>
