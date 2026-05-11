@@ -18,6 +18,10 @@ function caixaEscapeHtml(valor) {
         .replace(/'/g, '&#039;');
 }
 
+function caixaEhUuid(valor) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(valor || '').trim());
+}
+
 function iniciarCaixa() {
     if (!document.getElementById('caixa-data')) return;
 
@@ -208,6 +212,10 @@ async function salvarCompraCaixa() {
     for (const item of itensCompraCaixa) {
         const { materialExistente, novoNome } = obterMaterialCompraCaixa(item);
         if (!materialExistente && !novoNome) return showToast('Selecione um material existente ou digite um novo material em todos os itens.', 'error');
+        if (materialExistente && !caixaEhUuid(materialExistente.id)) {
+            console.error('Material existente sem UUID válido para compras_itens:', materialExistente);
+            return showToast(`O material "${materialExistente.nome}" não possui UUID válido. Recarregue o estoque ou corrija o cadastro antes de salvar.`, 'error');
+        }
         if ((item.quantidade || 0) <= 0) return showToast('Informe quantidade maior que zero em todos os itens.', 'error');
         if ((item.valor_unitario || 0) <= 0) return showToast('Informe valor unitário maior que zero em todos os itens.', 'error');
         itensValidos.push({ ...item, materialExistente, novoNome, valor_total: item.quantidade * item.valor_unitario });
@@ -233,6 +241,11 @@ async function salvarCompraCaixa() {
     if (compraError) {
         console.error('Erro ao salvar compra:', compraError);
         return showToast('Erro ao salvar compra.', 'error');
+    }
+
+    if (!caixaEhUuid(compra?.id)) {
+        console.error('Compra salva sem UUID válido para compras_itens:', compra);
+        return showToast('Compra salva, mas o ID retornado não é um UUID válido para salvar os itens.', 'error');
     }
 
     for (const item of itensValidos) {
@@ -275,6 +288,11 @@ async function salvarCompraCaixa() {
 
             materialId = novoMaterial.id;
             materialNome = novoMaterial.nome;
+        }
+
+        if (!caixaEhUuid(materialId)) {
+            console.error('Material sem UUID válido para compras_itens:', { materialId, materialNome, item });
+            return showToast(`O material "${materialNome}" não possui UUID válido para salvar o item da compra.`, 'error');
         }
 
         const { error: itemError } = await supabaseClient
