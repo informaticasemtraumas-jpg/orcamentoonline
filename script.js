@@ -480,7 +480,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
 
     // 2. Vendas Diretas: entradas financeiras gravadas pela venda direta de catálogo.
     const vendasDiretas = financeiroMes
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
+        .filter(f => f.tipo === 'ENTRADA' && ['Venda Direta', 'Venda de Peça'].includes(f.categoria))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
 
     // 3. Receita Total: soma dos orçamentos entregues com as vendas diretas.
@@ -512,7 +512,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         .filter(o => o.status === 'Entregue')
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     const totalGeralVendasDiretas = financeiro
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
+        .filter(f => f.tipo === 'ENTRADA' && ['Venda Direta', 'Venda de Peça'].includes(f.categoria))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     setDashboardValue('dash-total', totalGeralOrcamentos + totalGeralVendasDiretas);
 
