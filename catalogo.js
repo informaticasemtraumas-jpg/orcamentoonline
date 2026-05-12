@@ -511,7 +511,15 @@ async function salvarPrecificacaoPecaAtual() {
     }
 
     const itens = dados.itens.map(item => ({ user_id: currentUser.id, precificacao_id: precificacao.id, ...item }));
-    const resultados = dados.resultados.map(resultado => ({ user_id: currentUser.id, precificacao_id: precificacao.id, ...resultado }));
+    const resultados = dados.resultados.map(resultado => ({
+        user_id: currentUser.id,
+        precificacao_id: precificacao.id,
+        meio_venda: resultado.meio_venda,
+        despesas_variaveis: resultado.despesas_variaveis,
+        custo_meio_venda: resultado.custo_meio_venda,
+        lucro: resultado.lucro,
+        preco_final: resultado.preco_final,
+    }));
 
     const { error: itensError } = await supabaseClient.from('precificacao_itens').insert(itens);
     if (itensError) {
