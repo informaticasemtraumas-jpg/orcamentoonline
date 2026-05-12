@@ -1012,17 +1012,34 @@ async function salvarPedidoVendaCaixa() {
             if (pecaError) throw new Error(`Erro ao baixar estoque de ${item.peca.nome}.`);
             pecaAtual.quantidade = novaQuantidade;
 
+            const payloadItemPedido = {
+                pedido_id: pedidoId,
+                peca_id: item.peca_id,
+                descricao: item.peca.nome,
+                quantidade: item.quantidade,
+                valor_unitario: item.valor_unitario,
+                valor_total: item.valor_total,
+            };
+
             const { error: itemError } = await supabaseClient
                 .from('pedidos_venda_itens')
-                .insert([{
-                    pedido_id: pedidoId,
-                    peca_id: item.peca_id,
-                    descricao: item.peca.nome,
-                    quantidade: item.quantidade,
-                    valor_unitario: item.valor_unitario,
-                    valor_total: item.valor_total,
-                }]);
-            if (itemError) throw new Error(`Erro ao salvar item ${item.peca.nome}.`);
+                .insert([payloadItemPedido]);
+
+            if (itemError) {
+                console.error('Erro ao salvar item do pedido:', {
+                    item,
+                    payloadItemPedido,
+                    code: itemError?.code,
+                    message: itemError?.message,
+                    details: itemError?.details,
+                    hint: itemError?.hint,
+                    error: itemError,
+                });
+
+                throw new Error(
+                    `Erro ao salvar item ${item.descricao || item.peca?.nome || 'sem descrição'}: ${itemError?.message || 'erro desconhecido'}`
+                );
+            }
         }
 
         const valorFinanceiro = totais.valorPago || totais.total;
