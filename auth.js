@@ -11,6 +11,7 @@ async function checkUser() {
         carregarMateriais();
         carregarCatalogo();
         carregarConfigFinanceira();
+        carregarPrecificacaoConfiguracoes();
     } else {
         currentUser = null;
         document.getElementById('auth-container').classList.remove('hidden');

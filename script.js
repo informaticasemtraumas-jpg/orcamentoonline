@@ -16,6 +16,20 @@ let complexidadeNome = "Padrão";
 let currentUser = null;
 let statusChart = null;
 let materiais = [];
+let itensCompraCaixa = [];
+let precificacaoConfig = {
+    id: null,
+    valor_hora: 0,
+    horas_produtivas_mes: 160,
+    despesas_fixas_mes: 0,
+    margem_padrao: 100,
+    percentual_perda_padrao: 0,
+    taxa_debito: 0,
+    taxa_credito_1x: 0,
+    taxa_credito_parcelado: 0,
+    taxa_pix: 0,
+    taxa_dinheiro: 0,
+};
 
 // Configurações Financeiras (Padrão)
 let configFinanceira = {
@@ -29,6 +43,7 @@ let configFinanceira = {
 // As funções de estoque ficam em estoque.js e são carregadas sem alterar o HTML.
 document.write('<script src="estoque.js"></script>');
 document.write('<script src="catalogo.js"></script>');
+document.write('<script src="caixa.js"></script>');
 
 // ====================== MINI CALCULADORA DE ÁREA ======================
 
@@ -59,6 +74,8 @@ function aplicarResultadoArea() {
     if (origem === 'material') {
         document.getElementById('material-quantidade').value = resultado;
         calcularPrecoUnitarioMaterial();
+    } else if (origem === 'caixa' && typeof aplicarResultadoAreaCaixaItem === 'function') {
+        aplicarResultadoAreaCaixaItem(resultado);
     } else {
         document.getElementById('peca-material-qtd').value = resultado;
     }
@@ -98,11 +115,82 @@ function carregarConfigFinanceira() {
     }
 }
 
+
+// ====================== CONFIGURAÇÕES DE PRECIFICAÇÃO ======================
+
+function preencherCamposPrecificacaoConfig() {
+    const campos = ['valor_hora', 'horas_produtivas_mes', 'despesas_fixas_mes', 'margem_padrao', 'percentual_perda_padrao', 'taxa_debito', 'taxa_credito_1x', 'taxa_credito_parcelado', 'taxa_pix', 'taxa_dinheiro'];
+    campos.forEach(campo => {
+        const el = document.getElementById(`prec-cfg-${campo}`);
+        if (el) el.value = precificacaoConfig[campo] ?? 0;
+    });
+}
+
+function lerCamposPrecificacaoConfig() {
+    return {
+        valor_hora: parseFloat(document.getElementById('prec-cfg-valor_hora')?.value) || 0,
+        horas_produtivas_mes: parseFloat(document.getElementById('prec-cfg-horas_produtivas_mes')?.value) || 160,
+        despesas_fixas_mes: parseFloat(document.getElementById('prec-cfg-despesas_fixas_mes')?.value) || 0,
+        margem_padrao: parseFloat(document.getElementById('prec-cfg-margem_padrao')?.value) || 0,
+        percentual_perda_padrao: parseFloat(document.getElementById('prec-cfg-percentual_perda_padrao')?.value) || 0,
+        taxa_debito: parseFloat(document.getElementById('prec-cfg-taxa_debito')?.value) || 0,
+        taxa_credito_1x: parseFloat(document.getElementById('prec-cfg-taxa_credito_1x')?.value) || 0,
+        taxa_credito_parcelado: parseFloat(document.getElementById('prec-cfg-taxa_credito_parcelado')?.value) || 0,
+        taxa_pix: parseFloat(document.getElementById('prec-cfg-taxa_pix')?.value) || 0,
+        taxa_dinheiro: parseFloat(document.getElementById('prec-cfg-taxa_dinheiro')?.value) || 0,
+    };
+}
+
+async function carregarPrecificacaoConfiguracoes() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient
+        .from('precificacao_configuracoes')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Erro ao carregar configurações de precificação:', error);
+        preencherCamposPrecificacaoConfig();
+        return;
+    }
+
+    if (data) precificacaoConfig = { ...precificacaoConfig, ...data };
+    preencherCamposPrecificacaoConfig();
+}
+
+async function salvarPrecificacaoConfiguracoes(silencioso = false) {
+    if (!currentUser) return;
+    const valores = lerCamposPrecificacaoConfig();
+    const payload = { user_id: currentUser.id, ...valores, updated_at: new Date().toISOString() };
+
+    const query = precificacaoConfig.id
+        ? supabaseClient.from('precificacao_configuracoes').update(payload).eq('id', precificacaoConfig.id).select().single()
+        : supabaseClient.from('precificacao_configuracoes').insert([payload]).select().single();
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('Erro ao salvar configurações de precificação:', error);
+        if (!silencioso) showToast('Erro ao salvar precificação do ateliê.', 'error');
+        return;
+    }
+
+    precificacaoConfig = { ...precificacaoConfig, ...data };
+    preencherCamposPrecificacaoConfig();
+    if (!silencioso) showToast('Configurações de precificação salvas!');
+}
+
+let precificacaoConfigTimer = null;
+function salvarPrecificacaoConfiguracoesAuto() {
+    clearTimeout(precificacaoConfigTimer);
+    precificacaoConfigTimer = setTimeout(() => salvarPrecificacaoConfiguracoes(true), 800);
+}
+
 // ====================== NAVEGAÇÃO ======================
 
 function switchTab(tab) {
-    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-historico', 'view-config'];
-    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-historico', 'tab-config'];
+    const views = ['view-gerador', 'view-catalogo', 'view-estoque', 'view-caixa', 'view-historico', 'view-config'];
+    const tabs = ['tab-gerador', 'tab-catalogo', 'tab-estoque', 'tab-caixa', 'tab-historico', 'tab-config'];
     
     views.forEach(v => {
         const el = document.getElementById(v);
@@ -129,6 +217,7 @@ function switchTab(tab) {
     if (tab === 'historico') carregarHistorico();
     if (tab === 'estoque') carregarMateriais();
     if (tab === 'catalogo') carregarCatalogo();
+    if (tab === 'caixa' && typeof iniciarCaixa === 'function') iniciarCaixa();
 }
 
 // --- ORÇAMENTO ---
@@ -608,6 +697,8 @@ function aplicarResultadoArea() {
         if (typeof calcularPrecoUnitarioMaterial === 'function') calcularPrecoUnitarioMaterial();
     } else if (origem === 'compra') {
         document.getElementById('compra-quantidade').value = resultado;
+    } else if (origem === 'caixa' && typeof aplicarResultadoAreaCaixaItem === 'function') {
+        aplicarResultadoAreaCaixaItem(resultado);
     } else {
         document.getElementById('peca-material-qtd').value = resultado;
     }
