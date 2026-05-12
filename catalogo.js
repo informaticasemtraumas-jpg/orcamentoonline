@@ -72,17 +72,19 @@ function abrirModalNovaPeca() {
 
 function fecharModalPeca() { document.getElementById('modal-peca').classList.add('hidden'); }
 
-function adicionarMaterialAPeca() {
+async function adicionarMaterialAPeca() {
     const select = document.getElementById('peca-material-select');
     const materialId = select.value;
     const qtd = parseFloat(document.getElementById('peca-material-qtd').value) || 0;
     if (!materialId || qtd <= 0) return showAlert("Selecione o material e a quantidade.", "error");
 
     const material = materiais.find(m => m.id == materialId);
-    composicaoAtual.push({ material_id: material.id, nome: material.nome, unidade: material.unidade, preco: material.preco_unitario, qtd });
+    const custoMedio = await obterCustoMedioMaterialPrecificacao(material.id);
+    composicaoAtual.push({ material_id: material.id, nome: material.nome, unidade: material.unidade, preco: custoMedio || material.preco_unitario, qtd, preco_atual: material.preco_unitario });
     
     renderizarComposicao();
     calcularPrecoPeca();
+    if (typeof calcularPrecificacaoPecaAtual === 'function') calcularPrecificacaoPecaAtual();
     document.getElementById('peca-material-qtd').value = '';
 }
 
@@ -92,7 +94,10 @@ function renderizarComposicao() {
         ? `<p class="text-xs text-slate-400 text-center py-4">Nenhum material adicionado ainda</p>`
         : composicaoAtual.map((item, idx) => `
         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <div class="text-xs font-bold text-slate-800">${item.nome} (${item.qtd} ${item.unidade})</div>
+            <div class="space-y-1">
+                <div class="text-xs font-bold text-slate-800">${item.nome} (${item.qtd} ${item.unidade})</div>
+                <div class="text-[10px] text-slate-400 font-bold">Custo usado: ${formatadorMoeda.format(item.preco)} / ${item.unidade}</div>
+            </div>
             <div class="flex items-center gap-3">
                 <span class="text-xs font-black text-indigo-600">${formatadorMoeda.format(item.qtd * item.preco)}</span>
                 <button onclick="removerDaComposicao(${idx})" class="text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -106,6 +111,7 @@ function removerDaComposicao(idx) {
     composicaoAtual.splice(idx, 1);
     renderizarComposicao();
     calcularPrecoPeca();
+    if (typeof calcularPrecificacaoPecaAtual === 'function') calcularPrecificacaoPecaAtual();
 }
 
 function calcularPrecoPeca() {
@@ -301,6 +307,40 @@ async function venderPeca(id) {
 // ====================== PRECIFICAÇÃO DE PEÇAS ======================
 let precificacaoAtual = null;
 
+async function obterCustoMedioMaterialPrecificacao(materialId) {
+    const { data, error } = await supabaseClient
+        .from('compras_itens')
+        .select('quantidade, valor_total')
+        .eq('material_id', materialId);
+
+    if (error) {
+        console.error('Erro ao buscar custo médio do material:', error);
+        return null;
+    }
+
+    const totais = (data || []).reduce((acc, item) => {
+        const quantidade = parseFloat(item.quantidade) || 0;
+        const valor = parseFloat(item.valor_total) || 0;
+        if (quantidade > 0 && valor > 0) {
+            acc.quantidade += quantidade;
+            acc.valor += valor;
+        }
+        return acc;
+    }, { quantidade: 0, valor: 0 });
+
+    return totais.quantidade > 0 ? totais.valor / totais.quantidade : null;
+}
+
+async function aplicarCustosMediosComposicaoPrecificacao() {
+    for (const item of composicaoAtual) {
+        const material = materiais.find(m => String(m.id) === String(item.material_id)) || {};
+        const custoMedio = await obterCustoMedioMaterialPrecificacao(item.material_id);
+        item.preco_atual = parseFloat(material.preco_unitario) || item.preco || 0;
+        item.preco = custoMedio || item.preco_atual;
+        item.custo_medio_usado = Boolean(custoMedio);
+    }
+}
+
 async function abrirPrecificacaoPeca(id) {
     const peca = pecasCatalogo.find(p => p.id === id);
     if (!peca) return showToast('Peça não encontrada.', 'error');
@@ -333,10 +373,12 @@ async function abrirPrecificacaoPeca(id) {
             nome: material.nome || 'Material',
             unidade: material.unidade || '-',
             preco: parseFloat(material.preco_unitario) || 0,
+            preco_atual: parseFloat(material.preco_unitario) || 0,
             qtd: parseFloat(item.quantidade_usada) || 0,
         };
     });
 
+    await aplicarCustosMediosComposicaoPrecificacao();
     renderizarComposicao();
     calcularPrecoPeca();
     document.getElementById('peca-precificacao-bloco').classList.remove('hidden');
@@ -351,13 +393,16 @@ function calcularPrecificacaoPecaAtual() {
 
     const tempoHoras = parseFloat(document.getElementById('prec-peca-tempo-horas').value) || 0;
     const percentualPerda = parseFloat(document.getElementById('prec-peca-perda').value) || 0;
+    const margemPadrao = parseFloat(precificacaoConfig.margem_padrao) || 0;
     const custoMaterialSemPerda = composicaoAtual.reduce((acc, item) => acc + ((parseFloat(item.qtd) || 0) * (parseFloat(item.preco) || 0)), 0);
     const custoMaterial = custoMaterialSemPerda * (1 + (percentualPerda / 100));
     const custoMaoObra = tempoHoras * (parseFloat(precificacaoConfig.valor_hora) || 0);
     const horasMes = parseFloat(precificacaoConfig.horas_produtivas_mes) || 160;
     const despesasFixasRateadas = ((parseFloat(precificacaoConfig.despesas_fixas_mes) || 0) / horasMes) * tempoHoras;
     const custoBase = custoMaterial + custoMaoObra + despesasFixasRateadas;
-    const lucro = custoBase * ((parseFloat(precificacaoConfig.margem_padrao) || 0) / 100);
+    const lucroPadrao = custoBase * (margemPadrao / 100);
+    const precoMinimo = custoBase;
+    const precoRecomendado = custoBase + lucroPadrao;
 
     const meios = [
         { meio_venda: 'Venda direta | dinheiro', taxa: parseFloat(precificacaoConfig.taxa_dinheiro) || 0 },
@@ -368,13 +413,20 @@ function calcularPrecificacaoPecaAtual() {
     ];
 
     const resultados = meios.map(meio => {
-        const despesasVariaveis = (custoBase + lucro) * (meio.taxa / 100);
+        const despesasVariaveis = precoRecomendado * (meio.taxa / 100);
+        const precoFinal = precoRecomendado + despesasVariaveis;
+        const lucro = precoFinal - despesasVariaveis - custoBase;
+        const margemReal = custoBase > 0 ? (lucro / custoBase) * 100 : 0;
+        const prejuizo = precoFinal < custoBase || lucro < 0;
+        const margemBaixa = !prejuizo && margemReal < margemPadrao;
         return {
             meio_venda: meio.meio_venda,
             despesas_variaveis: despesasVariaveis,
             custo_meio_venda: despesasVariaveis,
             lucro,
-            preco_final: custoBase + lucro + despesasVariaveis,
+            preco_final: precoFinal,
+            margem_real: margemReal,
+            alerta: prejuizo ? 'Prejuízo' : (margemBaixa ? 'Margem baixa' : ''),
         };
     });
 
@@ -382,15 +434,26 @@ function calcularPrecificacaoPecaAtual() {
     document.getElementById('prec-res-mao-obra').innerText = formatadorMoeda.format(custoMaoObra);
     document.getElementById('prec-res-fixas').innerText = formatadorMoeda.format(despesasFixasRateadas);
     document.getElementById('prec-res-base').innerText = formatadorMoeda.format(custoBase);
-    document.getElementById('prec-resultados-tabela').innerHTML = resultados.map(r => `
+
+    const minimoEl = document.getElementById('prec-res-minimo');
+    const recomendadoEl = document.getElementById('prec-res-recomendado');
+    if (minimoEl) minimoEl.innerText = formatadorMoeda.format(precoMinimo);
+    if (recomendadoEl) recomendadoEl.innerText = formatadorMoeda.format(precoRecomendado);
+
+    document.getElementById('prec-resultados-tabela').innerHTML = resultados.map(r => {
+        const alertaClasse = r.alerta === 'Prejuízo' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
+        return `
         <tr class="border-b border-slate-50 last:border-0">
-            <td class="px-4 py-3 font-bold text-slate-700">${r.meio_venda}</td>
+            <td class="px-4 py-3 font-bold text-slate-700">
+                <div>${r.meio_venda}</div>
+                ${r.alerta ? `<span class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${alertaClasse}">${r.alerta}</span>` : ''}
+            </td>
             <td class="px-4 py-3 text-right font-bold text-red-500">${formatadorMoeda.format(r.despesas_variaveis)}</td>
             <td class="px-4 py-3 text-right font-bold text-red-500">${formatadorMoeda.format(r.custo_meio_venda)}</td>
-            <td class="px-4 py-3 text-right font-bold text-emerald-600">${formatadorMoeda.format(r.lucro)}</td>
-            <td class="px-4 py-3 text-right font-black text-emerald-700">${formatadorMoeda.format(r.preco_final)}</td>
-        </tr>
-    `).join('');
+            <td class="px-4 py-3 text-right font-bold ${r.lucro < 0 ? 'text-red-600' : 'text-emerald-600'}">${formatadorMoeda.format(r.lucro)}</td>
+            <td class="px-4 py-3 text-right font-black ${r.alerta === 'Prejuízo' ? 'text-red-700' : 'text-emerald-700'}">${formatadorMoeda.format(r.preco_final)}</td>
+        </tr>`;
+    }).join('');
 
     precificacaoAtual = {
         peca_id: parseInt(pecaId),
@@ -405,13 +468,15 @@ function calcularPrecificacaoPecaAtual() {
         observacoes: document.getElementById('prec-peca-observacoes').value.trim(),
         itens: composicaoAtual.map(item => ({
             material_id: item.material_id,
-            descricao: item.nome,
+            descricao: item.custo_medio_usado ? `${item.nome} (custo médio)` : item.nome,
             unidade: item.unidade,
             quantidade: item.qtd,
             valor_unitario: item.preco,
             valor_total: (parseFloat(item.qtd) || 0) * (parseFloat(item.preco) || 0),
         })),
         resultados,
+        preco_minimo: precoMinimo,
+        preco_recomendado: precoRecomendado,
     };
 
     if (window.lucide) lucide.createIcons();
