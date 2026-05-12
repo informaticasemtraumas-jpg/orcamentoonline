@@ -26,6 +26,8 @@ function caixaEhIdNumerico(valor) {
     return /^\d+$/.test(String(valor ?? '').trim());
 }
 
+let comprasCaixaLimite = 10;
+
 function iniciarCaixa() {
     if (!document.getElementById('caixa-data')) return;
 
@@ -43,7 +45,7 @@ function iniciarCaixa() {
     carregarHistoricoComprasCaixa();
 }
 
-function novaCompraCaixa(recarregar = true) {
+function novaCompraCaixa(recarregar = true, abrirModal = false) {
     itensCompraCaixa = [];
 
     const campos = {
@@ -62,7 +64,12 @@ function novaCompraCaixa(recarregar = true) {
 
     adicionarItemCompraCaixa(false);
     if (recarregar && typeof carregarMateriais === 'function') carregarMateriais();
+    if (abrirModal) document.getElementById('modal-caixa-compra')?.classList.remove('hidden');
 }
+
+function abrirModalNovaCompraCaixa() { novaCompraCaixa(true, true); }
+function fecharModalCompraCaixa() { document.getElementById('modal-caixa-compra')?.classList.add('hidden'); }
+function abrirNovoPedidoCaixa() { showToast('Pedido de venda será implementado na próxima etapa.'); }
 
 function caixaAtualizarSelectsMateriais() {
     renderizarItensCompraCaixa();
@@ -417,11 +424,12 @@ async function salvarCompraCaixa() {
         financeiroId = financeiro?.id || null;
 
         showToast('Compra registrada, estoque atualizado e saída lançada no financeiro!');
+        fecharModalCompraCaixa();
 
         if (typeof carregarMateriais === 'function') await carregarMateriais();
         if (typeof carregarHistorico === 'function') await carregarHistorico();
-        await carregarHistoricoComprasCaixa();
-        novaCompraCaixa(false);
+        await carregarHistoricoComprasCaixa(true);
+        novaCompraCaixa(false, false);
     } catch (err) {
         console.error('Erro ao salvar compra no Caixa:', err);
         await desfazerCompraCaixa({ compraId, financeiroId, materiaisOriginais, materiaisCriados });
@@ -431,19 +439,21 @@ async function salvarCompraCaixa() {
     }
 }
 
-async function carregarHistoricoComprasCaixa() {
+async function carregarHistoricoComprasCaixa(resetar = false) {
+    if (resetar) comprasCaixaLimite = 10;
     const container = document.getElementById('lista-compras-caixa');
     const detalhes = document.getElementById('caixa-detalhes-compra');
     if (!container || !currentUser) return;
 
     container.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">Carregando compras...</div>';
-    if (detalhes) detalhes.classList.add('hidden');
+    if (detalhes) detalhes.innerHTML = '';
 
     const { data: compras, error } = await supabaseClient
         .from('compras')
         .select('id, fornecedor, data_compra, valor_total, forma_pagamento')
         .eq('user_id', currentUser.id)
-        .order('data_compra', { ascending: false });
+        .order('data_compra', { ascending: false })
+        .range(0, comprasCaixaLimite);
 
     if (error) {
         console.error('Erro ao carregar histórico de compras:', error);
@@ -453,10 +463,13 @@ async function carregarHistoricoComprasCaixa() {
 
     if (!compras || compras.length === 0) {
         container.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">Nenhuma compra registrada ainda.</div>';
+        document.getElementById('caixa-historico-acoes')?.classList.add('hidden');
         return;
     }
 
-    const compraIds = compras.map(compra => compra.id);
+    const temMaisCompras = compras.length > comprasCaixaLimite;
+    const comprasExibidas = temMaisCompras ? compras.slice(0, comprasCaixaLimite) : compras;
+    const compraIds = comprasExibidas.map(compra => compra.id);
     const { data: itens, error: itensError } = await supabaseClient
         .from('compras_itens')
         .select('compra_id')
@@ -469,7 +482,7 @@ async function carregarHistoricoComprasCaixa() {
         return acc;
     }, {});
 
-    container.innerHTML = compras.map(compra => `
+    container.innerHTML = comprasExibidas.map(compra => `
         <div class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50 transition-all">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
                 <div>
@@ -504,7 +517,15 @@ async function carregarHistoricoComprasCaixa() {
         </div>
     `).join('');
 
+    const acoesHistorico = document.getElementById('caixa-historico-acoes');
+    if (acoesHistorico) acoesHistorico.classList.toggle('hidden', !temMaisCompras);
+
     if (window.lucide) lucide.createIcons();
+}
+
+function verMaisComprasCaixa() {
+    comprasCaixaLimite += 10;
+    carregarHistoricoComprasCaixa();
 }
 
 
@@ -611,7 +632,7 @@ async function excluirCompraCaixa(compraId) {
         showToast('Compra excluída, estoque revertido e financeiro removido.');
         if (typeof carregarMateriais === 'function') await carregarMateriais();
         if (typeof carregarHistorico === 'function') await carregarHistorico();
-        await carregarHistoricoComprasCaixa();
+        await carregarHistoricoComprasCaixa(true);
     } catch (err) {
         console.error('Erro ao excluir compra no Caixa:', err);
 
@@ -631,11 +652,13 @@ async function excluirCompraCaixa(compraId) {
     }
 }
 
+function fecharDetalhesCompraCaixa() { document.getElementById('modal-caixa-detalhes')?.classList.add('hidden'); }
+
 async function abrirDetalhesCompraCaixa(compraId) {
     const detalhes = document.getElementById('caixa-detalhes-compra');
     if (!detalhes) return;
 
-    detalhes.classList.remove('hidden');
+    document.getElementById('modal-caixa-detalhes')?.classList.remove('hidden');
     detalhes.innerHTML = '<div class="text-center text-slate-400 font-bold">Carregando itens da compra...</div>';
 
     const { data: itens, error } = await supabaseClient
@@ -653,7 +676,7 @@ async function abrirDetalhesCompraCaixa(compraId) {
     detalhes.innerHTML = `
         <div class="flex items-center justify-between gap-4 mb-4">
             <h4 class="text-lg font-black text-slate-800">Detalhes da Compra</h4>
-            <button onclick="document.getElementById('caixa-detalhes-compra').classList.add('hidden')" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-white transition-all">
+            <button onclick="fecharDetalhesCompraCaixa()" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-white transition-all">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
