@@ -17,6 +17,19 @@ let currentUser = null;
 let statusChart = null;
 let materiais = [];
 let itensCompraCaixa = [];
+let precificacaoConfig = {
+    id: null,
+    valor_hora: 0,
+    horas_produtivas_mes: 160,
+    despesas_fixas_mes: 0,
+    margem_padrao: 100,
+    percentual_perda_padrao: 0,
+    taxa_debito: 0,
+    taxa_credito_1x: 0,
+    taxa_credito_parcelado: 0,
+    taxa_pix: 0,
+    taxa_dinheiro: 0,
+};
 
 // Configurações Financeiras (Padrão)
 let configFinanceira = {
@@ -100,6 +113,77 @@ function carregarConfigFinanceira() {
         document.getElementById('cfg-horas-mes').value = configFinanceira.horasMes;
         calcularCustoMinuto();
     }
+}
+
+
+// ====================== CONFIGURAÇÕES DE PRECIFICAÇÃO ======================
+
+function preencherCamposPrecificacaoConfig() {
+    const campos = ['valor_hora', 'horas_produtivas_mes', 'despesas_fixas_mes', 'margem_padrao', 'percentual_perda_padrao', 'taxa_debito', 'taxa_credito_1x', 'taxa_credito_parcelado', 'taxa_pix', 'taxa_dinheiro'];
+    campos.forEach(campo => {
+        const el = document.getElementById(`prec-cfg-${campo}`);
+        if (el) el.value = precificacaoConfig[campo] ?? 0;
+    });
+}
+
+function lerCamposPrecificacaoConfig() {
+    return {
+        valor_hora: parseFloat(document.getElementById('prec-cfg-valor_hora')?.value) || 0,
+        horas_produtivas_mes: parseFloat(document.getElementById('prec-cfg-horas_produtivas_mes')?.value) || 160,
+        despesas_fixas_mes: parseFloat(document.getElementById('prec-cfg-despesas_fixas_mes')?.value) || 0,
+        margem_padrao: parseFloat(document.getElementById('prec-cfg-margem_padrao')?.value) || 0,
+        percentual_perda_padrao: parseFloat(document.getElementById('prec-cfg-percentual_perda_padrao')?.value) || 0,
+        taxa_debito: parseFloat(document.getElementById('prec-cfg-taxa_debito')?.value) || 0,
+        taxa_credito_1x: parseFloat(document.getElementById('prec-cfg-taxa_credito_1x')?.value) || 0,
+        taxa_credito_parcelado: parseFloat(document.getElementById('prec-cfg-taxa_credito_parcelado')?.value) || 0,
+        taxa_pix: parseFloat(document.getElementById('prec-cfg-taxa_pix')?.value) || 0,
+        taxa_dinheiro: parseFloat(document.getElementById('prec-cfg-taxa_dinheiro')?.value) || 0,
+    };
+}
+
+async function carregarPrecificacaoConfiguracoes() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient
+        .from('precificacao_configuracoes')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Erro ao carregar configurações de precificação:', error);
+        preencherCamposPrecificacaoConfig();
+        return;
+    }
+
+    if (data) precificacaoConfig = { ...precificacaoConfig, ...data };
+    preencherCamposPrecificacaoConfig();
+}
+
+async function salvarPrecificacaoConfiguracoes(silencioso = false) {
+    if (!currentUser) return;
+    const valores = lerCamposPrecificacaoConfig();
+    const payload = { user_id: currentUser.id, ...valores, updated_at: new Date().toISOString() };
+
+    const query = precificacaoConfig.id
+        ? supabaseClient.from('precificacao_configuracoes').update(payload).eq('id', precificacaoConfig.id).select().single()
+        : supabaseClient.from('precificacao_configuracoes').insert([payload]).select().single();
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('Erro ao salvar configurações de precificação:', error);
+        if (!silencioso) showToast('Erro ao salvar precificação do ateliê.', 'error');
+        return;
+    }
+
+    precificacaoConfig = { ...precificacaoConfig, ...data };
+    preencherCamposPrecificacaoConfig();
+    if (!silencioso) showToast('Configurações de precificação salvas!');
+}
+
+let precificacaoConfigTimer = null;
+function salvarPrecificacaoConfiguracoesAuto() {
+    clearTimeout(precificacaoConfigTimer);
+    precificacaoConfigTimer = setTimeout(() => salvarPrecificacaoConfiguracoes(true), 800);
 }
 
 // ====================== NAVEGAÇÃO ======================
@@ -396,7 +480,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
 
     // 2. Vendas Diretas: entradas financeiras gravadas pela venda direta de catálogo.
     const vendasDiretas = financeiroMes
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
+        .filter(f => f.tipo === 'ENTRADA' && ['Venda Direta', 'Venda de Peça'].includes(f.categoria))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
 
     // 3. Receita Total: soma dos orçamentos entregues com as vendas diretas.
@@ -428,7 +512,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         .filter(o => o.status === 'Entregue')
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     const totalGeralVendasDiretas = financeiro
-        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda Direta')
+        .filter(f => f.tipo === 'ENTRADA' && ['Venda Direta', 'Venda de Peça'].includes(f.categoria))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     setDashboardValue('dash-total', totalGeralOrcamentos + totalGeralVendasDiretas);
 

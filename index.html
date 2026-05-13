@@ -293,108 +293,235 @@
 
         <!-- VIEW: CAIXA -->
         <div id="view-caixa" class="hidden space-y-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
                 <div>
                     <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Módulo Caixa</p>
-                    <h2 class="text-2xl font-black text-slate-800">Nova Compra de Materiais</h2>
-                    <p class="text-sm text-slate-400 font-bold">Registre uma compra com vários itens e atualize estoque/financeiro em um único lançamento.</p>
+                    <h2 class="text-2xl font-black text-slate-800">Caixa</h2>
+                    <p class="text-sm text-slate-400 font-bold">Compras de materiais, pedidos e movimentações operacionais em uma tela limpa.</p>
                 </div>
-                <button onclick="novaCompraCaixa()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2">
-                    <i data-lucide="refresh-cw" class="w-5 h-5"></i> LIMPAR
-                </button>
-            </div>
-
-            <section class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fornecedor</label>
-                        <input type="text" id="caixa-fornecedor" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome do fornecedor">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nº da Nota (opcional)</label>
-                        <input type="text" id="caixa-numero-nota" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="NF, cupom ou recibo">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data</label>
-                        <input type="date" id="caixa-data" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
-                        <select id="caixa-forma-pagamento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
-                            <option value="Dinheiro">Dinheiro</option>
-                            <option value="Pix">Pix</option>
-                            <option value="Cartão de Débito">Cartão de Débito</option>
-                            <option value="Cartão de Crédito">Cartão de Crédito</option>
-                            <option value="Boleto">Boleto</option>
-                            <option value="Outro">Outro</option>
-                        </select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Desconto Geral (R$)</label>
-                        <input type="number" id="caixa-desconto" value="0" min="0" step="0.01" oninput="calcularTotaisCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
-                        <input type="text" id="caixa-observacoes" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Opcional">
-                    </div>
-                </div>
-            </section>
-
-            <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
-                    <div>
-                        <h3 class="text-xl font-black text-slate-800">Itens da Compra</h3>
-                        <p class="text-xs text-slate-400 font-bold">Selecione um material já cadastrado ou digite o nome de um novo material.</p>
-                    </div>
-                    <button onclick="adicionarItemCompraCaixa()" class="px-5 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
-                        <i data-lucide="plus" class="w-5 h-5"></i> ADICIONAR ITEM
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <button onclick="abrirModalNovaCompraCaixa()" class="px-6 py-4 bg-red-500 text-white font-black rounded-2xl hover:bg-red-600 transition-all shadow-lg shadow-red-100 flex items-center justify-center gap-2">
+                        <i data-lucide="shopping-cart" class="w-5 h-5"></i> NOVA COMPRA
+                    </button>
+                    <button onclick="abrirNovoPedidoCaixa()" class="px-6 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2">
+                        <i data-lucide="receipt" class="w-5 h-5"></i> NOVO PEDIDO
                     </button>
                 </div>
-                <div id="caixa-itens" class="divide-y divide-slate-100">
-                    <!-- Itens da compra via JS -->
-                </div>
-            </section>
-
-            <section class="bg-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col lg:flex-row justify-between gap-6 lg:items-center">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 flex-1">
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</p>
-                        <p id="caixa-subtotal" class="text-2xl font-black">R$ 0,00</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Desconto</p>
-                        <p id="caixa-desconto-exibir" class="text-2xl font-black text-red-300">- R$ 0,00</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total da Compra</p>
-                        <p id="caixa-total" class="text-3xl font-black text-red-300">R$ 0,00</p>
-                    </div>
-                </div>
-                <button id="btn-salvar-compra-caixa" onclick="salvarCompraCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btn-salvar-compra-caixa-texto">SALVAR COMPRA</span>
-                </button>
-            </section>
+            </div>
 
             <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
-                        <h3 class="text-xl font-black text-slate-800">Histórico de Compras</h3>
-                        <p class="text-xs text-slate-400 font-bold">Compras mais recentes registradas no Caixa.</p>
+                        <h3 class="text-xl font-black text-slate-800">Últimas Compras</h3>
+                        <p class="text-xs text-slate-400 font-bold">Histórico compacto, carregado de 10 em 10 compras.</p>
                     </div>
-                    <button onclick="carregarHistoricoComprasCaixa()" class="px-5 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                    <button onclick="carregarHistoricoComprasCaixa(true)" class="px-5 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
                         <i data-lucide="refresh-cw" class="w-5 h-5"></i> ATUALIZAR
                     </button>
                 </div>
                 <div id="lista-compras-caixa" class="divide-y divide-slate-100">
                     <!-- Histórico de compras via JS -->
                 </div>
-                <div id="caixa-detalhes-compra" class="hidden border-t border-slate-100 bg-slate-50 p-6">
-                    <!-- Detalhes da compra via JS -->
+                <div id="caixa-historico-acoes" class="hidden p-4 bg-slate-50 border-t border-slate-100 text-center">
+                    <button onclick="verMaisComprasCaixa()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-100 transition-all">VER MAIS</button>
                 </div>
             </section>
+
+            <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800">Últimos Pedidos</h3>
+                        <p class="text-xs text-slate-400 font-bold">Entradas do Caixa carregadas de 10 em 10 pedidos.</p>
+                    </div>
+                    <button onclick="carregarHistoricoPedidosVendaCaixa(true)" class="px-5 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-5 h-5"></i> ATUALIZAR
+                    </button>
+                </div>
+                <div id="lista-pedidos-caixa" class="divide-y divide-slate-100">
+                    <!-- Histórico de pedidos via JS -->
+                </div>
+                <div id="pedido-historico-acoes" class="hidden p-4 bg-slate-50 border-t border-slate-100 text-center">
+                    <button onclick="verMaisPedidosVendaCaixa()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-black rounded-2xl hover:bg-slate-100 transition-all">VER MAIS</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- MODAL: NOVA COMPRA NO CAIXA -->
+        <div id="modal-caixa-compra" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
+                <div class="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Caixa</p>
+                        <h2 class="text-2xl font-black text-slate-800">Nova Compra de Materiais</h2>
+                        <p class="text-sm text-slate-400 font-bold">Registre múltiplos itens, atualize estoque e lance a saída financeira.</p>
+                    </div>
+                    <button onclick="fecharModalCompraCaixa()" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-8 h-8"></i></button>
+                </div>
+
+                <section class="bg-white space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fornecedor</label>
+                            <input type="text" id="caixa-fornecedor" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome do fornecedor">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nº da Nota (opcional)</label>
+                            <input type="text" id="caixa-numero-nota" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="NF, cupom ou recibo">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data</label>
+                            <input type="date" id="caixa-data" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
+                            <select id="caixa-forma-pagamento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Pix">Pix</option>
+                                <option value="Cartão de Débito">Cartão de Débito</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                <option value="Boleto">Boleto</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Desconto Geral (R$)</label>
+                            <input type="number" id="caixa-desconto" value="0" min="0" step="0.01" oninput="calcularTotaisCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
+                            <input type="text" id="caixa-observacoes" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Opcional">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800">Itens da Compra</h3>
+                            <p class="text-xs text-slate-400 font-bold">Selecione um material já cadastrado ou digite o nome de um novo material.</p>
+                        </div>
+                        <button onclick="adicionarItemCompraCaixa()" class="px-5 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i> ADICIONAR ITEM
+                        </button>
+                    </div>
+                    <div id="caixa-itens" class="divide-y divide-slate-100">
+                        <!-- Itens da compra via JS -->
+                    </div>
+                </section>
+
+                <section class="bg-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col lg:flex-row justify-between gap-6 lg:items-center">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 flex-1">
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</p><p id="caixa-subtotal" class="text-2xl font-black">R$ 0,00</p></div>
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Desconto</p><p id="caixa-desconto-exibir" class="text-2xl font-black text-red-300">- R$ 0,00</p></div>
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total da Compra</p><p id="caixa-total" class="text-3xl font-black text-red-300">R$ 0,00</p></div>
+                    </div>
+                    <button id="btn-salvar-compra-caixa" onclick="salvarCompraCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                        <i data-lucide="save" class="w-5 h-5"></i> <span id="btn-salvar-compra-caixa-texto">SALVAR COMPRA</span>
+                    </button>
+                </section>
+            </div>
+        </div>
+
+        <!-- MODAL: PEDIDO DE VENDA NO CAIXA -->
+        <div id="modal-caixa-pedido" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
+                <div class="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Caixa</p>
+                        <h2 class="text-2xl font-black text-slate-800">Pedido de Venda</h2>
+                        <p class="text-sm text-slate-400 font-bold">Registre peças vendidas, baixe estoque e lance a entrada financeira.</p>
+                    </div>
+                    <button onclick="fecharModalPedidoVendaCaixa()" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-8 h-8"></i></button>
+                </div>
+
+                <section class="bg-white space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
+                            <input type="text" id="pedido-cliente" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome do cliente">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data da Venda</label>
+                            <input type="date" id="pedido-data" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
+                            <select id="pedido-forma-pagamento" onchange="atualizarPrecosItensPedidoVendaCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
+                                <option value="Pix">Pix</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão de Débito">Cartão de Débito</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                <option value="Boleto">Boleto</option>
+                                <option value="A Prazo">A Prazo</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Desconto (R$)</label>
+                            <input type="number" id="pedido-desconto" value="0" min="0" step="0.01" oninput="calcularTotaisPedidoVendaCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Pago (R$)</label>
+                            <input type="number" id="pedido-valor-pago" value="0" min="0" step="0.01" oninput="this.dataset.editado = 'true'; calcularTotaisPedidoVendaCaixa()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="0.00">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
+                            <input type="text" id="pedido-observacoes" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Opcional">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800">Itens do Pedido</h3>
+                            <p class="text-xs text-slate-400 font-bold">Selecione peças prontas do catálogo; o preço recomendado da precificação será sugerido quando existir.</p>
+                        </div>
+                        <button onclick="adicionarItemPedidoVendaCaixa()" class="px-5 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i> ADICIONAR ITEM
+                        </button>
+                    </div>
+                    <div id="pedido-itens" class="divide-y divide-slate-100">
+                        <!-- Itens do pedido via JS -->
+                    </div>
+                </section>
+
+                <section class="bg-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col lg:flex-row justify-between gap-6 lg:items-center">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-6 flex-1">
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</p><p id="pedido-subtotal" class="text-2xl font-black">R$ 0,00</p></div>
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Desconto</p><p id="pedido-desconto-exibir" class="text-2xl font-black text-red-300">- R$ 0,00</p></div>
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Final</p><p id="pedido-total" class="text-3xl font-black text-emerald-300">R$ 0,00</p></div>
+                        <div><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Pago</p><p id="pedido-valor-pago-exibir" class="text-3xl font-black text-emerald-300">R$ 0,00</p></div>
+                    </div>
+                    <button id="btn-salvar-pedido-caixa" onclick="salvarPedidoVendaCaixa()" class="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                        <i data-lucide="save" class="w-5 h-5"></i> <span id="btn-salvar-pedido-caixa-texto">SALVAR PEDIDO</span>
+                    </button>
+                </section>
+            </div>
+        </div>
+
+        <!-- MODAL: DETALHES DA COMPRA NO CAIXA -->
+        <div id="modal-caixa-detalhes" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-6 md:p-8">
+                <div id="caixa-detalhes-compra">
+                    <!-- Detalhes da compra via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: DETALHES DO PEDIDO NO CAIXA -->
+        <div id="modal-caixa-pedido-detalhes" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-6 md:p-8">
+                <div id="caixa-detalhes-pedido">
+                    <!-- Detalhes do pedido via JS -->
+                </div>
+            </div>
         </div>
 
         <!-- VIEW: GESTÃO & DASHBOARD -->
@@ -509,6 +636,56 @@
                         <button onclick="salvarConfigFinanceira()" class="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all">SALVAR CONFIGURAÇÕES</button>
                     </div>
                 </section>
+                <!-- Precificação do Ateliê -->
+                <section class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6 md:col-span-2">
+                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i data-lucide="calculator" class="w-6 h-6 text-indigo-600"></i> Precificação do Ateliê
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor da hora</label>
+                            <input type="number" id="prec-cfg-valor_hora" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0.00">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Horas produtivas/mês</label>
+                            <input type="number" id="prec-cfg-horas_produtivas_mes" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="160">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Despesas fixas/mês</label>
+                            <input type="number" id="prec-cfg-despesas_fixas_mes" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0.00">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Margem padrão (%)</label>
+                            <input type="number" id="prec-cfg-margem_padrao" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="100">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Perda padrão (%)</label>
+                            <input type="number" id="prec-cfg-percentual_perda_padrao" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Taxa débito (%)</label>
+                            <input type="number" id="prec-cfg-taxa_debito" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Taxa crédito 1x (%)</label>
+                            <input type="number" id="prec-cfg-taxa_credito_1x" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Taxa parcelado (%)</label>
+                            <input type="number" id="prec-cfg-taxa_credito_parcelado" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Taxa Pix (%)</label>
+                            <input type="number" id="prec-cfg-taxa_pix" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Taxa dinheiro (%)</label>
+                            <input type="number" id="prec-cfg-taxa_dinheiro" oninput="salvarPrecificacaoConfiguracoesAuto()" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="0">
+                        </div>
+                    </div>
+                    <button onclick="salvarPrecificacaoConfiguracoes()" class="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all">SALVAR PRECIFICAÇÃO</button>
+                </section>
+
             </div>
         </div>
 
@@ -648,6 +825,8 @@
                 <button onclick="fecharModalPeca()" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-8 h-8"></i></button>
             </div>
 
+            <input type="hidden" id="peca-edit-id">
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Dados Básicos -->
                 <div class="space-y-4">
@@ -707,9 +886,58 @@
                             <span id="peca-res-venda" class="text-3xl font-black">R$ 0,00</span>
                         </div>
                     </div>
-                    <button onclick="salvarPecaCompleta()" class="w-full py-5 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-900 transition-all shadow-lg">SALVAR NO CATÁLOGO</button>
+                    <button id="btn-salvar-peca-catalogo" onclick="salvarPecaCompleta()" class="w-full py-5 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-900 transition-all shadow-lg">SALVAR NO CATÁLOGO</button>
                 </div>
             </div>
+
+            <section id="peca-precificacao-bloco" class="hidden mt-8 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm space-y-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Precificação</p>
+                        <h3 class="text-xl font-black text-slate-800">Preço por meio de venda</h3>
+                    </div>
+                    <button onclick="salvarPrecificacaoPecaAtual()" class="px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all">SALVAR PRECIFICAÇÃO</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tempo produção (horas)</label>
+                        <input type="number" id="prec-peca-tempo-horas" oninput="calcularPrecificacaoPecaAtual()" class="w-full p-3 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Complexidade</label>
+                        <select id="prec-peca-complexidade" onchange="calcularPrecificacaoPecaAtual()" class="w-full p-3 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700">
+                            <option value="Padrão">Padrão</option>
+                            <option value="Média">Média</option>
+                            <option value="Alta">Alta</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Perda (%)</label>
+                        <input type="number" id="prec-peca-perda" oninput="calcularPrecificacaoPecaAtual()" class="w-full p-3 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
+                        <input type="text" id="prec-peca-observacoes" class="w-full p-3 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-bold text-slate-700" placeholder="Opcional">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100"><p class="text-[10px] font-black text-red-500 uppercase">Custo material</p><p id="prec-res-material" class="text-lg font-black text-red-600">R$ 0,00</p></div>
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100"><p class="text-[10px] font-black text-red-500 uppercase">Mão de obra</p><p id="prec-res-mao-obra" class="text-lg font-black text-red-600">R$ 0,00</p></div>
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100"><p class="text-[10px] font-black text-red-500 uppercase">Fixas rateadas</p><p id="prec-res-fixas" class="text-lg font-black text-red-600">R$ 0,00</p></div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[10px] font-black text-slate-400 uppercase">Custo base</p><p id="prec-res-base" class="text-lg font-black text-slate-800">R$ 0,00</p></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100"><p class="text-[10px] font-black text-amber-600 uppercase">Preço mínimo sem prejuízo</p><p id="prec-res-minimo" class="text-xl font-black text-amber-700">R$ 0,00</p><p class="text-[10px] font-bold text-amber-600 mt-1">Sugestão operacional: cobre os custos reais.</p></div>
+                    <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100"><p class="text-[10px] font-black text-emerald-600 uppercase">Preço recomendado</p><p id="prec-res-recomendado" class="text-xl font-black text-emerald-700">R$ 0,00</p><p class="text-[10px] font-bold text-emerald-600 mt-1">Inclui a margem padrão configurada.</p></div>
+                </div>
+                <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+                    <table class="w-full">
+                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase">Meio de venda</th><th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase">Despesas variáveis</th><th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase">Custo do meio</th><th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase">Lucro</th><th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase">Preço final</th></tr></thead>
+                        <tbody id="prec-resultados-tabela"></tbody>
+                    </table>
+                </div>
+            </section>
+
         </div>
     </div>
 
