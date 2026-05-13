@@ -951,12 +951,14 @@ async function salvarPedidoVendaCaixa() {
 
     const itensValidos = [];
     for (const item of itensPedidoVendaCaixa) {
-        const peca = pecasCatalogo.find(p => String(p.id) === String(item.peca_id));
+        const pecaId = Number(item.peca_id);
+        if (!Number.isFinite(pecaId) || !Number.isInteger(pecaId) || pecaId <= 0) return showToast('Selecione uma peça válida em todos os itens. O peca_id deve ser numérico.', 'error');
+        const peca = pecasCatalogo.find(p => Number(p.id) === pecaId);
         if (!peca) return showToast('Selecione uma peça existente em todos os itens.', 'error');
         const quantidade = parseInt(item.quantidade) || 0;
         if (quantidade <= 0) return showToast('Informe quantidade maior que zero em todos os itens.', 'error');
         if ((item.valor_unitario || 0) <= 0) return showToast('Informe valor unitário maior que zero em todos os itens.', 'error');
-        itensValidos.push({ ...item, peca, quantidade, valor_total: quantidade * item.valor_unitario });
+        itensValidos.push({ ...item, peca_id: pecaId, peca, quantidade, valor_total: quantidade * item.valor_unitario });
     }
 
     const totaisPorPeca = itensValidos.reduce((acc, item) => {
@@ -989,13 +991,14 @@ async function salvarPedidoVendaCaixa() {
             observacoes: observacoes || null,
         };
 
-        const { data: pedido, error: pedidoError } = await supabaseClient
+        const { data: pedidoCriado, error: pedidoError } = await supabaseClient
             .from('pedidos_venda')
             .insert([pedidoPayload])
             .select()
             .single();
         if (pedidoError) throw new Error('Erro ao salvar pedido de venda.');
-        pedidoId = pedido.id;
+        if (!caixaEhUuid(pedidoCriado?.id)) throw new Error('Pedido salvo, mas o ID retornado não é um UUID válido para salvar os itens.');
+        pedidoId = pedidoCriado.id;
 
         for (const item of itensValidos) {
             if (!pecasOriginaisIds.has(item.peca.id)) {
@@ -1003,7 +1006,7 @@ async function salvarPedidoVendaCaixa() {
                 pecasOriginais.push({ id: item.peca.id, quantidade: item.peca.quantidade });
             }
 
-            const pecaAtual = pecasCatalogo.find(p => String(p.id) === String(item.peca_id));
+            const pecaAtual = pecasCatalogo.find(p => Number(p.id) === item.peca_id);
             const novaQuantidade = (parseInt(pecaAtual.quantidade) || 0) - item.quantidade;
             const { error: pecaError } = await supabaseClient
                 .from('pecas')
@@ -1012,14 +1015,21 @@ async function salvarPedidoVendaCaixa() {
             if (pecaError) throw new Error(`Erro ao baixar estoque de ${item.peca.nome}.`);
             pecaAtual.quantidade = novaQuantidade;
 
+            const descricao = item.peca.nome;
+            const quantidade = item.quantidade;
+            const valor_unitario = item.valor_unitario;
+            const valor_total = item.valor_total;
             const payloadItemPedido = {
-                pedido_id: pedidoId,
-                peca_id: item.peca_id,
-                descricao: item.peca.nome,
-                quantidade: item.quantidade,
-                valor_unitario: item.valor_unitario,
-                valor_total: item.valor_total,
+                pedido_id: pedidoCriado.id,
+                peca_id: Number(item.peca_id || item.id),
+                descricao,
+                quantidade,
+                valor_unitario,
+                valor_total
             };
+            if (!Number.isFinite(payloadItemPedido.peca_id) || !Number.isInteger(payloadItemPedido.peca_id) || payloadItemPedido.peca_id <= 0) {
+                throw new Error(`Peça inválida no item ${descricao || 'sem descrição'}: peca_id deve ser um número válido.`);
+            }
 
             const { error: itemError } = await supabaseClient
                 .from('pedidos_venda_itens')
@@ -1268,12 +1278,16 @@ async function excluirPedidoVendaCaixa(pedidoId) {
 
     try {
         for (const item of itensExcluidos) {
+            const pecaId = Number(item.peca_id);
+            if (!Number.isFinite(pecaId) || !Number.isInteger(pecaId) || pecaId <= 0) {
+                throw new Error(`Peça inválida no item ${item.descricao || 'sem descrição'}: peca_id deve ser um número válido.`);
+            }
             const { data: peca, error: pecaError } = await supabaseClient
                 .from('pecas')
                 .select('id, quantidade')
-                .eq('id', item.peca_id)
+                .eq('id', pecaId)
                 .single();
-            if (pecaError || !peca) throw new Error(`Erro ao localizar peça ${item.descricao || item.peca_id}.`);
+            if (pecaError || !peca) throw new Error(`Erro ao localizar peça ${item.descricao || pecaId}.`);
 
             if (!pecasOriginaisIds.has(peca.id)) {
                 pecasOriginaisIds.add(peca.id);
@@ -1281,7 +1295,7 @@ async function excluirPedidoVendaCaixa(pedidoId) {
             }
 
             const novaQuantidade = (parseInt(peca.quantidade) || 0) + (parseInt(item.quantidade) || 0);
-            const { error: updateError } = await supabaseClient.from('pecas').update({ quantidade: novaQuantidade }).eq('id', item.peca_id);
+            const { error: updateError } = await supabaseClient.from('pecas').update({ quantidade: novaQuantidade }).eq('id', pecaId);
             if (updateError) throw new Error(`Erro ao restaurar estoque de ${item.descricao || 'peça'}.`);
         }
         estoqueRestaurado = true;
