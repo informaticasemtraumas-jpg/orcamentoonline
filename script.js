@@ -214,10 +214,433 @@ function switchTab(tab) {
         activeTab.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
     }
     
-    if (tab === 'historico') carregarHistorico();
+    if (tab === 'historico') {
+        carregarHistorico();
+        carregarRelatoriosOperacionais();
+    }
     if (tab === 'estoque') carregarMateriais();
     if (tab === 'catalogo') carregarCatalogo();
     if (tab === 'caixa' && typeof iniciarCaixa === 'function') iniciarCaixa();
+}
+
+
+// ====================== RELATÓRIOS OPERACIONAIS ======================
+
+const RELATORIO_LIMITE_INICIAL = 20;
+const relatoriosOperacionais = {
+    carregado: false,
+    pecas: { limite: RELATORIO_LIMITE_INICIAL, dados: [], temMais: false },
+    materiais: { limite: RELATORIO_LIMITE_INICIAL, dados: [], temMais: false },
+    compras: { limite: RELATORIO_LIMITE_INICIAL, dados: [], temMais: false },
+    pedidos: { limite: RELATORIO_LIMITE_INICIAL, dados: [], temMais: false },
+};
+
+function relEscapeHtml(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function relNumero(valor) {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : 0;
+}
+
+function relQuantidade(valor) {
+    const numero = relNumero(valor);
+    return Number.isInteger(numero) ? String(numero) : String(parseFloat(numero.toFixed(4)));
+}
+
+function relPeriodoPadrao() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    return { inicial: `${ano}-${mes}-01`, final: `${ano}-${mes}-${dia}` };
+}
+
+function inicializarFiltrosRelatorios() {
+    const inicialEl = document.getElementById('rel-data-inicial');
+    const finalEl = document.getElementById('rel-data-final');
+    if (!inicialEl || !finalEl) return;
+
+    const padrao = relPeriodoPadrao();
+    if (!inicialEl.value) inicialEl.value = padrao.inicial;
+    if (!finalEl.value) finalEl.value = padrao.final;
+}
+
+function relObterPeriodo() {
+    inicializarFiltrosRelatorios();
+    return {
+        inicial: document.getElementById('rel-data-inicial')?.value || null,
+        final: document.getElementById('rel-data-final')?.value || null,
+    };
+}
+
+function relBadgeStatus(qtd) {
+    const quantidade = relNumero(qtd);
+    if (quantidade <= 0) return '<span class="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase">Zerado</span>';
+    if (quantidade < 5) return '<span class="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-black uppercase">Baixo</span>';
+    return '<span class="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase">OK</span>';
+}
+
+function relSetLoading(id, colunas) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<tr><td colspan="${colunas}" class="px-3 py-6 text-center text-slate-400 font-bold">Carregando...</td></tr>`;
+}
+
+function relSetEmpty(id, colunas, mensagem) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<tr><td colspan="${colunas}" class="px-3 py-6 text-center text-slate-400 font-bold">${mensagem}</td></tr>`;
+}
+
+function relToggleVerMais(tipo) {
+    const acoes = document.getElementById(`rel-${tipo}-acoes`);
+    if (acoes) acoes.classList.toggle('hidden', !relatoriosOperacionais[tipo]?.temMais);
+}
+
+async function carregarRelatoriosOperacionais(forcar = false) {
+    if (!currentUser) return;
+    if (relatoriosOperacionais.carregado && !forcar) return;
+
+    inicializarFiltrosRelatorios();
+    await Promise.all([
+        carregarResumoOperacional(),
+        carregarRelatorioPecasProntas(forcar),
+        carregarRelatorioMateriais(forcar),
+        carregarRelatorioCompras(forcar),
+        carregarRelatorioPedidos(forcar),
+    ]);
+    relatoriosOperacionais.carregado = true;
+}
+
+async function carregarRelatorioPecasProntas(resetar = false) {
+    if (!currentUser) return;
+    if (resetar) relatoriosOperacionais.pecas.limite = RELATORIO_LIMITE_INICIAL;
+    relSetLoading('rel-pecas-corpo', 5);
+
+    const limite = relatoriosOperacionais.pecas.limite;
+    const { data, error } = await supabaseClient
+        .from('pecas')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('nome', { ascending: true })
+        .range(0, limite);
+
+    if (error) {
+        console.error('Erro no relatório de peças prontas:', error);
+        relSetEmpty('rel-pecas-corpo', 5, 'Erro ao carregar peças prontas.');
+        return;
+    }
+
+    const temMais = (data || []).length > limite;
+    const exibidos = temMais ? data.slice(0, limite) : (data || []);
+    relatoriosOperacionais.pecas.dados = exibidos;
+    relatoriosOperacionais.pecas.temMais = temMais;
+
+    const corpo = document.getElementById('rel-pecas-corpo');
+    if (!corpo) return;
+    if (exibidos.length === 0) {
+        relSetEmpty('rel-pecas-corpo', 5, 'Nenhuma peça pronta cadastrada.');
+    } else {
+        corpo.innerHTML = exibidos.map(peca => `
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2 text-xs font-black text-slate-800">${relEscapeHtml(peca.nome || '-')}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-600 text-right">${relQuantidade(peca.quantidade)}</td>
+                <td class="px-3 py-2 text-xs font-black text-indigo-600 text-right">${formatadorMoeda.format(relNumero(peca.preco_venda))}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-500">${relEscapeHtml(peca.categoria || '-')}</td>
+                <td class="px-3 py-2">${relBadgeStatus(peca.quantidade)}</td>
+            </tr>
+        `).join('');
+    }
+    relToggleVerMais('pecas');
+}
+
+async function carregarRelatorioMateriais(resetar = false) {
+    if (!currentUser) return;
+    if (resetar) relatoriosOperacionais.materiais.limite = RELATORIO_LIMITE_INICIAL;
+    relSetLoading('rel-materiais-corpo', 7);
+
+    const limite = relatoriosOperacionais.materiais.limite;
+    const { data, error } = await supabaseClient
+        .from('materiais')
+        .select('id, nome, descricao, quantidade, unidade, preco_unitario')
+        .eq('user_id', currentUser.id)
+        .order('nome', { ascending: true })
+        .range(0, limite);
+
+    if (error) {
+        console.error('Erro no relatório de materiais:', error);
+        relSetEmpty('rel-materiais-corpo', 7, 'Erro ao carregar materiais.');
+        return;
+    }
+
+    const temMais = (data || []).length > limite;
+    const exibidos = temMais ? data.slice(0, limite) : (data || []);
+    relatoriosOperacionais.materiais.dados = exibidos;
+    relatoriosOperacionais.materiais.temMais = temMais;
+
+    const corpo = document.getElementById('rel-materiais-corpo');
+    if (!corpo) return;
+    if (exibidos.length === 0) {
+        relSetEmpty('rel-materiais-corpo', 7, 'Nenhum material cadastrado.');
+    } else {
+        corpo.innerHTML = exibidos.map(material => {
+            const quantidade = relNumero(material.quantidade);
+            const precoUnitario = relNumero(material.preco_unitario);
+            return `
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-3 py-2 text-xs font-black text-slate-800">${relEscapeHtml(material.nome || '-')}</td>
+                    <td class="px-3 py-2 text-xs font-bold text-slate-500">${relEscapeHtml(material.descricao || '-')}</td>
+                    <td class="px-3 py-2 text-xs font-bold text-slate-600 text-right">${relQuantidade(quantidade)}</td>
+                    <td class="px-3 py-2 text-xs font-bold text-slate-500">${relEscapeHtml(material.unidade || '-')}</td>
+                    <td class="px-3 py-2 text-xs font-bold text-slate-600 text-right">${formatadorMoeda.format(precoUnitario)}</td>
+                    <td class="px-3 py-2 text-xs font-black text-indigo-600 text-right">${formatadorMoeda.format(quantidade * precoUnitario)}</td>
+                    <td class="px-3 py-2">${relBadgeStatus(quantidade)}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+    relToggleVerMais('materiais');
+}
+
+async function carregarRelatorioCompras(resetar = false) {
+    if (!currentUser) return;
+    if (resetar) relatoriosOperacionais.compras.limite = RELATORIO_LIMITE_INICIAL;
+    relSetLoading('rel-compras-corpo', 5);
+
+    const limite = relatoriosOperacionais.compras.limite;
+    const { inicial, final } = relObterPeriodo();
+    const fornecedor = document.getElementById('rel-filtro-fornecedor')?.value.trim();
+    let query = supabaseClient
+        .from('compras')
+        .select('id, fornecedor, data_compra, forma_pagamento, valor_total')
+        .eq('user_id', currentUser.id)
+        .order('data_compra', { ascending: false })
+        .range(0, limite);
+
+    if (inicial) query = query.gte('data_compra', inicial);
+    if (final) query = query.lte('data_compra', final);
+    if (fornecedor) query = query.ilike('fornecedor', `%${fornecedor}%`);
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('Erro no relatório de compras:', error);
+        relSetEmpty('rel-compras-corpo', 5, 'Erro ao carregar compras.');
+        return;
+    }
+
+    const temMais = (data || []).length > limite;
+    const exibidos = temMais ? data.slice(0, limite) : (data || []);
+    const contagemItens = await relContarItens('compras_itens', 'compra_id', exibidos.map(compra => compra.id));
+    const dadosComItens = exibidos.map(compra => ({ ...compra, quantidade_itens: contagemItens[compra.id] || 0 }));
+    relatoriosOperacionais.compras.dados = dadosComItens;
+    relatoriosOperacionais.compras.temMais = temMais;
+
+    const corpo = document.getElementById('rel-compras-corpo');
+    if (!corpo) return;
+    if (dadosComItens.length === 0) {
+        relSetEmpty('rel-compras-corpo', 5, 'Nenhuma compra no período informado.');
+    } else {
+        corpo.innerHTML = dadosComItens.map(compra => `
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2 text-xs font-black text-slate-800">${relEscapeHtml(compra.fornecedor || 'Sem fornecedor')}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-600">${formatDate(compra.data_compra + 'T12:00:00')}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-500">${relEscapeHtml(compra.forma_pagamento || '-')}</td>
+                <td class="px-3 py-2 text-xs font-black text-red-500 text-right">${formatadorMoeda.format(relNumero(compra.valor_total))}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-600 text-right">${compra.quantidade_itens}</td>
+            </tr>
+        `).join('');
+    }
+    relToggleVerMais('compras');
+    await carregarResumoOperacional();
+}
+
+async function carregarRelatorioPedidos(resetar = false) {
+    if (!currentUser) return;
+    if (resetar) relatoriosOperacionais.pedidos.limite = RELATORIO_LIMITE_INICIAL;
+    relSetLoading('rel-pedidos-corpo', 6);
+
+    const limite = relatoriosOperacionais.pedidos.limite;
+    const { inicial, final } = relObterPeriodo();
+    const cliente = document.getElementById('rel-filtro-cliente')?.value.trim();
+    let query = supabaseClient
+        .from('pedidos_venda')
+        .select('id, cliente, data_venda, forma_pagamento, valor_total, valor_pago')
+        .eq('user_id', currentUser.id)
+        .order('data_venda', { ascending: false })
+        .range(0, limite);
+
+    if (inicial) query = query.gte('data_venda', inicial);
+    if (final) query = query.lte('data_venda', final);
+    if (cliente) query = query.ilike('cliente', `%${cliente}%`);
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('Erro no relatório de pedidos:', error);
+        relSetEmpty('rel-pedidos-corpo', 6, 'Erro ao carregar pedidos.');
+        return;
+    }
+
+    const temMais = (data || []).length > limite;
+    const exibidos = temMais ? data.slice(0, limite) : (data || []);
+    const contagemItens = await relContarItens('pedidos_venda_itens', 'pedido_id', exibidos.map(pedido => pedido.id));
+    const dadosComItens = exibidos.map(pedido => ({ ...pedido, quantidade_itens: contagemItens[pedido.id] || 0 }));
+    relatoriosOperacionais.pedidos.dados = dadosComItens;
+    relatoriosOperacionais.pedidos.temMais = temMais;
+
+    const corpo = document.getElementById('rel-pedidos-corpo');
+    if (!corpo) return;
+    if (dadosComItens.length === 0) {
+        relSetEmpty('rel-pedidos-corpo', 6, 'Nenhum pedido no período informado.');
+    } else {
+        corpo.innerHTML = dadosComItens.map(pedido => `
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2 text-xs font-black text-slate-800">${relEscapeHtml(pedido.cliente || 'Cliente Sem Nome')}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-600">${formatDate(pedido.data_venda + 'T12:00:00')}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-500">${relEscapeHtml(pedido.forma_pagamento || '-')}</td>
+                <td class="px-3 py-2 text-xs font-black text-emerald-600 text-right">${formatadorMoeda.format(relNumero(pedido.valor_total))}</td>
+                <td class="px-3 py-2 text-xs font-black text-emerald-700 text-right">${formatadorMoeda.format(relNumero(pedido.valor_pago))}</td>
+                <td class="px-3 py-2 text-xs font-bold text-slate-600 text-right">${pedido.quantidade_itens}</td>
+            </tr>
+        `).join('');
+    }
+    relToggleVerMais('pedidos');
+    await carregarResumoOperacional();
+}
+
+async function relContarItens(tabela, coluna, ids) {
+    if (!ids || ids.length === 0) return {};
+    const { data, error } = await supabaseClient
+        .from(tabela)
+        .select(coluna)
+        .in(coluna, ids);
+
+    if (error) {
+        console.error(`Erro ao contar itens em ${tabela}:`, error);
+        return {};
+    }
+
+    return (data || []).reduce((acc, item) => {
+        acc[item[coluna]] = (acc[item[coluna]] || 0) + 1;
+        return acc;
+    }, {});
+}
+
+async function carregarResumoOperacional() {
+    if (!currentUser) return;
+    inicializarFiltrosRelatorios();
+    const container = document.getElementById('rel-resumo-cards');
+    if (!container) return;
+    container.innerHTML = '<div class="col-span-full p-6 text-center text-slate-400 font-bold">Carregando resumo...</div>';
+
+    const { inicial, final } = relObterPeriodo();
+    const [pecasResp, materiaisResp, comprasResp, pedidosResp] = await Promise.all([
+        supabaseClient.from('pecas').select('quantidade, preco_venda').eq('user_id', currentUser.id),
+        supabaseClient.from('materiais').select('quantidade, preco_unitario').eq('user_id', currentUser.id),
+        relQueryPeriodo('compras', 'data_compra', 'valor_total', inicial, final),
+        relQueryPeriodo('pedidos_venda', 'data_venda', 'valor_total, valor_pago', inicial, final),
+    ]);
+
+    if (pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error) {
+        console.error('Erro no resumo operacional:', pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error);
+        container.innerHTML = '<div class="col-span-full p-6 text-center text-red-400 font-bold">Erro ao carregar resumo geral.</div>';
+        return;
+    }
+
+    const totalPecas = (pecasResp.data || []).reduce((acc, peca) => acc + relNumero(peca.quantidade), 0);
+    const valorPecas = (pecasResp.data || []).reduce((acc, peca) => acc + (relNumero(peca.quantidade) * relNumero(peca.preco_venda)), 0);
+    const totalMateriais = (materiaisResp.data || []).reduce((acc, material) => acc + relNumero(material.quantidade), 0);
+    const valorMateriais = (materiaisResp.data || []).reduce((acc, material) => acc + (relNumero(material.quantidade) * relNumero(material.preco_unitario)), 0);
+    const comprasPeriodo = (comprasResp.data || []).reduce((acc, compra) => acc + relNumero(compra.valor_total), 0);
+    const vendasPeriodo = (pedidosResp.data || []).reduce((acc, pedido) => acc + relNumero(pedido.valor_pago || pedido.valor_total), 0);
+    const saldoPeriodo = vendasPeriodo - comprasPeriodo;
+
+    const cards = [
+        { label: 'Total em peças prontas', valor: relQuantidade(totalPecas), cor: 'text-slate-800' },
+        { label: 'Valor estimado das peças', valor: formatadorMoeda.format(valorPecas), cor: 'text-indigo-600' },
+        { label: 'Total em materiais', valor: relQuantidade(totalMateriais), cor: 'text-slate-800' },
+        { label: 'Valor estimado do estoque', valor: formatadorMoeda.format(valorMateriais), cor: 'text-indigo-600' },
+        { label: 'Compras no período', valor: formatadorMoeda.format(comprasPeriodo), cor: 'text-red-500' },
+        { label: 'Vendas no período', valor: formatadorMoeda.format(vendasPeriodo), cor: 'text-emerald-600' },
+        { label: 'Saldo do período', valor: formatadorMoeda.format(saldoPeriodo), cor: saldoPeriodo < 0 ? 'text-red-500' : 'text-emerald-600' },
+    ];
+
+    container.innerHTML = cards.map(card => `
+        <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">${card.label}</p>
+            <p class="text-xl font-black ${card.cor}">${card.valor}</p>
+        </div>
+    `).join('');
+}
+
+function relQueryPeriodo(tabela, colunaData, colunas, inicial, final) {
+    let query = supabaseClient
+        .from(tabela)
+        .select(colunas)
+        .eq('user_id', currentUser.id);
+
+    if (inicial) query = query.gte(colunaData, inicial);
+    if (final) query = query.lte(colunaData, final);
+    return query;
+}
+
+function verMaisRelatorio(tipo) {
+    if (!relatoriosOperacionais[tipo]) return;
+    relatoriosOperacionais[tipo].limite += RELATORIO_LIMITE_INICIAL;
+    if (tipo === 'pecas') carregarRelatorioPecasProntas();
+    if (tipo === 'materiais') carregarRelatorioMateriais();
+    if (tipo === 'compras') carregarRelatorioCompras();
+    if (tipo === 'pedidos') carregarRelatorioPedidos();
+}
+
+function exportarRelatorioCSV(tipo) {
+    const dados = relatoriosOperacionais[tipo]?.dados || [];
+    if (dados.length === 0) return showToast('Atualize o relatório antes de exportar.', 'error');
+
+    const config = {
+        pecas: {
+            nome: 'relatorio-pecas-prontas.csv',
+            cabecalho: ['Peça', 'Quantidade disponível', 'Preço de venda', 'Categoria', 'Status'],
+            linhas: dados.map(p => [p.nome || '-', relNumero(p.quantidade), relNumero(p.preco_venda), p.categoria || '-', relNumero(p.quantidade) <= 0 ? 'Zerado' : relNumero(p.quantidade) < 5 ? 'Baixo' : 'OK']),
+        },
+        materiais: {
+            nome: 'relatorio-estoque-materiais.csv',
+            cabecalho: ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Preço unitário', 'Valor estimado', 'Status'],
+            linhas: dados.map(m => [m.nome || '-', m.descricao || '-', relNumero(m.quantidade), m.unidade || '-', relNumero(m.preco_unitario), relNumero(m.quantidade) * relNumero(m.preco_unitario), relNumero(m.quantidade) <= 0 ? 'Zerado' : relNumero(m.quantidade) < 5 ? 'Baixo' : 'OK']),
+        },
+        compras: {
+            nome: 'relatorio-compras.csv',
+            cabecalho: ['Fornecedor', 'Data', 'Forma de pagamento', 'Valor total', 'Quantidade de itens'],
+            linhas: dados.map(c => [c.fornecedor || 'Sem fornecedor', c.data_compra || '-', c.forma_pagamento || '-', relNumero(c.valor_total), c.quantidade_itens || 0]),
+        },
+        pedidos: {
+            nome: 'relatorio-pedidos-venda.csv',
+            cabecalho: ['Cliente', 'Data', 'Forma de pagamento', 'Valor total', 'Valor pago', 'Quantidade de itens'],
+            linhas: dados.map(p => [p.cliente || 'Cliente Sem Nome', p.data_venda || '-', p.forma_pagamento || '-', relNumero(p.valor_total), relNumero(p.valor_pago), p.quantidade_itens || 0]),
+        },
+    }[tipo];
+
+    if (!config) return;
+    const csv = [config.cabecalho, ...config.linhas]
+        .map(linha => linha.map(relCsvValor).join(';'))
+        .join('\n');
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = config.nome;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function relCsvValor(valor) {
+    return `"${String(valor ?? '').replace(/"/g, '""')}"`;
 }
 
 // --- ORÇAMENTO ---
