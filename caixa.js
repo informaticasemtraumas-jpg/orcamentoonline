@@ -1053,20 +1053,23 @@ async function salvarPedidoVendaCaixa() {
         }
 
         const valorFinanceiro = totais.valorPago || totais.total;
+        const descricaoFinanceira = `Pedido de venda - ${cliente}`;
         const { data: financeiro, error: finError } = await supabaseClient
             .from('financeiro')
             .insert([{
                 user_id: currentUser.id,
                 tipo: 'ENTRADA',
                 categoria: 'Venda de Peça',
-                descricao: `Pedido de venda - ${cliente}`,
+                descricao: descricaoFinanceira,
                 valor: valorFinanceiro,
-                referencia_id: pedidoId,
                 data_movimentacao: data_venda,
             }])
             .select('id')
             .single();
-        if (finError) throw new Error('Erro ao registrar entrada no financeiro.');
+        if (finError) {
+            console.error('Erro ao registrar entrada financeira do pedido:', finError);
+            throw new Error(`Erro ao registrar entrada no financeiro: ${finError?.message || 'erro desconhecido'}.`);
+        }
         financeiroId = financeiro?.id || null;
 
         showToast('Pedido registrado, estoque baixado e entrada lançada no financeiro!');
@@ -1259,13 +1262,17 @@ async function excluirPedidoVendaCaixa(pedidoId) {
     const { data: itens, error: itensError } = await supabaseClient.from('pedidos_venda_itens').select('*').eq('pedido_id', pedidoId);
     if (itensError) return showToast('Não foi possível carregar os itens do pedido.', 'error');
 
+    const descricaoFinanceira = `Pedido de venda - ${pedido.cliente || 'Cliente Sem Nome'}`;
+    const valorFinanceiro = pedido.valor_pago || pedido.valor_total;
     const { data: financeiros, error: finBuscaError } = await supabaseClient
         .from('financeiro')
         .select('*')
         .eq('user_id', currentUser.id)
         .eq('tipo', 'ENTRADA')
         .eq('categoria', 'Venda de Peça')
-        .eq('referencia_id', pedidoId);
+        .eq('descricao', descricaoFinanceira)
+        .eq('valor', valorFinanceiro)
+        .eq('data_movimentacao', pedido.data_venda);
     if (finBuscaError) return showToast('Não foi possível localizar a entrada financeira do pedido.', 'error');
 
     const pecasOriginais = [];
