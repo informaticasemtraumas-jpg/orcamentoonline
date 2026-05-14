@@ -1088,28 +1088,63 @@
         </div>
     </div>
 
-    <!-- MODAL: CALCULADORA DE ÁREA (MINI) -->
+    <!-- MODAL: CALCULADORA DE ÁREA / METRO LINEAR (MINI) -->
     <div id="modal-calc-area" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 space-y-6">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-6">
             <div class="flex justify-between items-center">
-                <h3 class="font-black text-slate-800">Calculadora de Área</h3>
+                <div>
+                    <h3 class="font-black text-slate-800">Calculadora de Medidas</h3>
+                    <p class="text-xs text-slate-400 font-bold">Área/m² ou metro linear para tecido.</p>
+                </div>
                 <button onclick="fecharCalculadoraArea()" class="text-slate-400"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             <input type="hidden" id="calc-origem" value="peca">
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Largura (cm)</label>
-                        <input type="number" id="mini-largura" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Altura (cm)</label>
-                        <input type="number" id="mini-altura" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold">
+                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                    <button type="button" id="calc-modo-area" onclick="setModoCalculadoraMedidas('area')" class="py-2 rounded-xl text-xs font-black transition-all bg-white text-indigo-600 shadow-sm">Área / m²</button>
+                    <button type="button" id="calc-modo-linear" onclick="setModoCalculadoraMedidas('linear')" class="py-2 rounded-xl text-xs font-black transition-all text-slate-500">Metro linear</button>
+                </div>
+
+                <div id="calc-bloco-area" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Largura (cm)</label>
+                            <input type="number" id="mini-largura" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Altura (cm)</label>
+                            <input type="number" id="mini-altura" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold">
+                        </div>
                     </div>
                 </div>
-                <div class="p-4 bg-indigo-50 rounded-2xl text-center">
-                    <p class="text-[10px] font-black text-indigo-600 uppercase mb-1">Resultado em m²</p>
+
+                <div id="calc-bloco-linear" class="hidden space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Largura tecido (cm)</label>
+                            <input type="number" id="linear-largura-tecido" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold" placeholder="Ex: 140">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Comprimento (cm)</label>
+                            <input type="number" id="linear-comprimento" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold" placeholder="Ex: 50">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Preço total pago (R$)</label>
+                            <input type="number" id="linear-preco-total" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold" placeholder="Ex: 15,90">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Uso da peça (cm)</label>
+                            <input type="number" id="linear-uso" oninput="calcularMedidaAtual()" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-indigo-600 font-bold" placeholder="Ex: 3">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-indigo-50 rounded-2xl text-center space-y-1">
+                    <p id="mini-resultado-label" class="text-[10px] font-black text-indigo-600 uppercase">Resultado em m²</p>
                     <h4 id="mini-resultado" class="text-xl font-black text-indigo-700">0,0000 m²</h4>
+                    <p id="mini-resultado-detalhe" class="text-[11px] font-bold text-indigo-500"></p>
                 </div>
                 <button onclick="aplicarResultadoArea()" class="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all">USAR RESULTADO</button>
             </div>

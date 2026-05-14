@@ -282,19 +282,16 @@ async function excluirPeca(id) {
 
 
 function abrirCalculadoraArea() {
+    if (typeof configurarCalculadoraMedidas === 'function') {
+        configurarCalculadoraMedidas('peca');
+        return;
+    }
+
     document.getElementById('mini-largura').value = '';
     document.getElementById('mini-altura').value = '';
     document.getElementById('mini-resultado').innerText = '0,0000 m²';
     document.getElementById('modal-calc-area').classList.remove('hidden');
     document.getElementById('calc-origem').value = 'peca';
-    
-    const calc = () => {
-        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
-        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
-        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
-    };
-    document.getElementById('mini-largura').oninput = calc;
-    document.getElementById('mini-altura').oninput = calc;
 }
 
 

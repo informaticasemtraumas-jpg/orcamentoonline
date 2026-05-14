@@ -1079,54 +1079,174 @@ function fecharModalRelatorio() { document.getElementById('modal-relatorio').cla
 function imprimirRelatorio() { window.print(); }
 function gerarRelatorioPDF() { gerarRelatorioMensal(); }
 
-// --- CALCULADORA DE ÁREA ---
-function abrirCalculadoraAreaMaterial() {
-    document.getElementById('calc-origem').value = 'material';
-    document.getElementById('mini-largura').value = '';
-    document.getElementById('mini-altura').value = '';
-    document.getElementById('mini-resultado').innerText = '0.0000 m²';
+// --- CALCULADORA DE ÁREA / METRO LINEAR ---
+let modoCalculadoraMedidas = 'area';
+let ultimoResultadoCalculadora = { modo: 'area', valor: 0 };
+
+function numeroCalculadora(valor) {
+    return parseFloat(valor) || 0;
+}
+
+function formatarNumeroCalculadora(valor, casas = 4) {
+    return parseFloat((numeroCalculadora(valor)).toFixed(casas)).toString().replace('.', ',');
+}
+
+function unidadeSugereMetroLinear(unidade) {
+    return ['metros', 'metro', 'm', 'tecido'].includes(String(unidade || '').trim().toLowerCase());
+}
+
+function obterModoPadraoCalculadora(origem) {
+    if (origem === 'material') {
+        return unidadeSugereMetroLinear(document.getElementById('material-unidade')?.value) ? 'linear' : 'area';
+    }
+
+    if (origem === 'peca') {
+        const materialId = document.getElementById('peca-material-select')?.value;
+        const material = materiais.find(m => String(m.id) === String(materialId));
+        return unidadeSugereMetroLinear(material?.unidade) ? 'linear' : 'area';
+    }
+
+    return 'area';
+}
+
+function limparCamposCalculadoraMedidas() {
+    ['mini-largura', 'mini-altura', 'linear-largura-tecido', 'linear-comprimento', 'linear-preco-total', 'linear-uso'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const resultado = document.getElementById('mini-resultado');
+    const detalhe = document.getElementById('mini-resultado-detalhe');
+    if (resultado) resultado.innerText = modoCalculadoraMedidas === 'linear' ? 'R$ 0,00 por metro linear' : '0,0000 m²';
+    if (detalhe) detalhe.innerText = '';
+    ultimoResultadoCalculadora = { modo: modoCalculadoraMedidas, valor: 0 };
+}
+
+function configurarCalculadoraMedidas(origem, modo = null) {
+    document.getElementById('calc-origem').value = origem;
+    setModoCalculadoraMedidas(modo || obterModoPadraoCalculadora(origem), false);
+    limparCamposCalculadoraMedidas();
     document.getElementById('modal-calc-area').classList.remove('hidden');
-    const calc = () => {
-        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
-        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
-        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
+    calcularMedidaAtual();
+}
+
+function setModoCalculadoraMedidas(modo, recalcular = true) {
+    modoCalculadoraMedidas = modo === 'linear' ? 'linear' : 'area';
+    const areaAtivo = modoCalculadoraMedidas === 'area';
+
+    document.getElementById('calc-bloco-area')?.classList.toggle('hidden', !areaAtivo);
+    document.getElementById('calc-bloco-linear')?.classList.toggle('hidden', areaAtivo);
+
+    const btnArea = document.getElementById('calc-modo-area');
+    const btnLinear = document.getElementById('calc-modo-linear');
+    btnArea?.classList.toggle('bg-white', areaAtivo);
+    btnArea?.classList.toggle('text-indigo-600', areaAtivo);
+    btnArea?.classList.toggle('shadow-sm', areaAtivo);
+    btnArea?.classList.toggle('text-slate-500', !areaAtivo);
+    btnLinear?.classList.toggle('bg-white', !areaAtivo);
+    btnLinear?.classList.toggle('text-indigo-600', !areaAtivo);
+    btnLinear?.classList.toggle('shadow-sm', !areaAtivo);
+    btnLinear?.classList.toggle('text-slate-500', areaAtivo);
+
+    const label = document.getElementById('mini-resultado-label');
+    if (label) label.innerText = areaAtivo ? 'Resultado em m²' : 'Resultado em metro linear';
+
+    if (recalcular) calcularMedidaAtual();
+}
+
+function calcularMedidaAtual() {
+    if (modoCalculadoraMedidas === 'linear') return calcularMetroLinearAtual();
+    return calcularAreaAtual();
+}
+
+function calcularAreaAtual() {
+    const largura = numeroCalculadora(document.getElementById('mini-largura')?.value);
+    const altura = numeroCalculadora(document.getElementById('mini-altura')?.value);
+    const areaM2 = (largura * altura) / 10000;
+
+    ultimoResultadoCalculadora = { modo: 'area', valor: areaM2 };
+    const resultado = document.getElementById('mini-resultado');
+    const detalhe = document.getElementById('mini-resultado-detalhe');
+    if (resultado) resultado.innerText = `${areaM2.toFixed(4).replace('.', ',')} m²`;
+    if (detalhe) detalhe.innerText = largura && altura ? `${formatarNumeroCalculadora(largura, 4)} cm × ${formatarNumeroCalculadora(altura, 4)} cm` : '';
+    return ultimoResultadoCalculadora;
+}
+
+function calcularMetroLinearAtual() {
+    const larguraTecidoCm = numeroCalculadora(document.getElementById('linear-largura-tecido')?.value);
+    const comprimentoCm = numeroCalculadora(document.getElementById('linear-comprimento')?.value);
+    const precoTotal = numeroCalculadora(document.getElementById('linear-preco-total')?.value);
+    const usoCm = numeroCalculadora(document.getElementById('linear-uso')?.value);
+    const comprimentoM = comprimentoCm / 100;
+    const usoM = usoCm / 100;
+    const precoMetroLinear = comprimentoM > 0 ? precoTotal / comprimentoM : 0;
+    const custoUso = usoM * precoMetroLinear;
+
+    ultimoResultadoCalculadora = {
+        modo: 'linear',
+        valor: usoM || comprimentoM,
+        comprimentoM,
+        usoM,
+        precoMetroLinear,
+        custoUso,
+        larguraTecidoCm,
+        precoTotal,
     };
-    document.getElementById('mini-largura').oninput = calc;
-    document.getElementById('mini-altura').oninput = calc;
+
+    const resultado = document.getElementById('mini-resultado');
+    const detalhe = document.getElementById('mini-resultado-detalhe');
+    if (resultado) resultado.innerText = `${formatadorMoeda.format(precoMetroLinear)} por metro linear`;
+    if (detalhe) {
+        const partes = [];
+        if (larguraTecidoCm) partes.push(`largura ${formatarNumeroCalculadora(larguraTecidoCm, 4)} cm`);
+        if (comprimentoCm) partes.push(`comprado ${formatarNumeroCalculadora(comprimentoCm, 4)} cm (${formatarNumeroCalculadora(comprimentoM, 4)} m)`);
+        if (usoCm) partes.push(`uso ${formatarNumeroCalculadora(usoCm, 4)} cm (${formatarNumeroCalculadora(usoM, 4)} m) = ${formatadorMoeda.format(custoUso)}`);
+        detalhe.innerText = partes.join(' • ');
+    }
+    return ultimoResultadoCalculadora;
+}
+
+function abrirCalculadoraAreaMaterial() {
+    configurarCalculadoraMedidas('material');
 }
 
 function abrirCalculadoraAreaCompra() {
-    document.getElementById('calc-origem').value = 'compra';
-    document.getElementById('mini-largura').value = '';
-    document.getElementById('mini-altura').value = '';
-    document.getElementById('mini-resultado').innerText = '0.0000 m²';
-    document.getElementById('modal-calc-area').classList.remove('hidden');
-    const calc = () => {
-        const l = parseFloat(document.getElementById('mini-largura').value) || 0;
-        const a = parseFloat(document.getElementById('mini-altura').value) || 0;
-        document.getElementById('mini-resultado').innerText = ((l * a) / 10000).toFixed(4) + ' m²';
-    };
-    document.getElementById('mini-largura').oninput = calc;
-    document.getElementById('mini-altura').oninput = calc;
+    configurarCalculadoraMedidas('compra', 'area');
 }
 
 function fecharCalculadoraArea() { document.getElementById('modal-calc-area').classList.add('hidden'); }
 
 function aplicarResultadoArea() {
-    const l = parseFloat(document.getElementById('mini-largura').value) || 0;
-    const a = parseFloat(document.getElementById('mini-altura').value) || 0;
-    const resultado = ((l * a) / 10000).toFixed(4);
+    const resultado = calcularMedidaAtual();
     const origem = document.getElementById('calc-origem').value || 'peca';
-    if (origem === 'material') {
-        document.getElementById('material-quantidade').value = resultado;
+
+    if (resultado.modo === 'linear') {
+        if (origem === 'material') {
+            const quantidade = resultado.comprimentoM || resultado.valor || 0;
+            document.getElementById('material-quantidade').value = quantidade.toFixed(4);
+            document.getElementById('material-preco-total').value = resultado.precoTotal ? resultado.precoTotal.toFixed(2) : '';
+            document.getElementById('material-preco-unitario').value = resultado.precoMetroLinear ? resultado.precoMetroLinear.toFixed(2) : '';
+            const texto = document.getElementById('material-calculo-texto');
+            const bloco = document.getElementById('material-calculo-resultado');
+            if (texto && bloco) {
+                bloco.classList.remove('hidden');
+                texto.innerText = `${formatadorMoeda.format(resultado.precoMetroLinear)} por metro linear • ${formatarNumeroCalculadora(quantidade, 4)} m comprados`;
+            }
+        } else if (origem === 'peca') {
+            document.getElementById('peca-material-qtd').value = (resultado.usoM || resultado.valor || 0).toFixed(4);
+        } else if (origem === 'compra') {
+            document.getElementById('compra-quantidade').value = (resultado.comprimentoM || resultado.valor || 0).toFixed(4);
+        }
+    } else if (origem === 'material') {
+        document.getElementById('material-quantidade').value = resultado.valor.toFixed(4);
         if (typeof calcularPrecoUnitarioMaterial === 'function') calcularPrecoUnitarioMaterial();
     } else if (origem === 'compra') {
-        document.getElementById('compra-quantidade').value = resultado;
+        document.getElementById('compra-quantidade').value = resultado.valor.toFixed(4);
     } else if (origem === 'caixa' && typeof aplicarResultadoAreaCaixaItem === 'function') {
-        aplicarResultadoAreaCaixaItem(resultado);
+        aplicarResultadoAreaCaixaItem(resultado.valor.toFixed(4));
     } else {
-        document.getElementById('peca-material-qtd').value = resultado;
+        document.getElementById('peca-material-qtd').value = resultado.valor.toFixed(4);
     }
+
+    if (origem === 'peca' && typeof atualizarPrecificacaoTempoReal === 'function') atualizarPrecificacaoTempoReal();
     fecharCalculadoraArea();
 }
-

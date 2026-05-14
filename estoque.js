@@ -328,10 +328,10 @@ function calcularPrecoUnitarioMaterial() {
 
     if (precoTotal > 0 && quantidade > 0) {
         const unitario = precoTotal / quantidade;
-        document.getElementById('material-preco-unitario').value = unitario.toFixed(4);
+        document.getElementById('material-preco-unitario').value = unitario.toFixed(2);
         document.getElementById('material-calculo-resultado').classList.remove('hidden');
         document.getElementById('material-calculo-texto').innerText =
-            `R$ ${precoTotal.toFixed(2)} ÷ ${quantidade} = R$ ${unitario.toFixed(4)} por unidade`;
+            `${formatadorMoeda.format(precoTotal)} ÷ ${estoqueQuantidadeFormatada(quantidade)} = ${formatadorMoeda.format(unitario)} por unidade`;
     } else {
         document.getElementById('material-calculo-resultado').classList.add('hidden');
     }
