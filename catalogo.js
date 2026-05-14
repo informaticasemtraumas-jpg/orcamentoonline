@@ -36,9 +36,9 @@ function renderizarCatalogo() {
                     <button onclick="produzirPeca(${p.id})" class="px-3 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1" title="Registrar produção">
                         <i data-lucide="plus" class="w-3 h-3"></i> PRODUZIR
                     </button>
-                    <button onclick="venderPeca(${p.id})" class="px-3 py-2 bg-indigo-600 text-white text-xs font-black rounded-lg hover:bg-indigo-700 transition-all shadow-sm flex items-center gap-1" title="Vender peça pronta">
-                        <i data-lucide="dollar-sign" class="w-3 h-3"></i> VENDER
-                    </button>
+                    <div class="px-3 py-2 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-100 max-w-[180px]" title="As vendas agora são registradas em Caixa → Novo Pedido.">
+                        As vendas agora são registradas em Caixa → Novo Pedido.
+                    </div>
                     <button onclick="abrirPrecificacaoPeca(${p.id})" class="px-3 py-2 bg-amber-500 text-white text-xs font-black rounded-lg hover:bg-amber-600 transition-all shadow-sm flex items-center gap-1" title="Precificar peça">
                         <i data-lucide="calculator" class="w-3 h-3"></i> PRECIFICAR
                     </button>
