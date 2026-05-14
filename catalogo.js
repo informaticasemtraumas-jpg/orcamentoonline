@@ -4,7 +4,68 @@ async function carregarCatalogo() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient.from('pecas').select('*').eq('user_id', currentUser.id).order('nome', { ascending: true });
     if (error) console.error(error);
-    else { pecasCatalogo = data || []; renderizarCatalogo(); }
+    else {
+        pecasCatalogo = data || [];
+        await aplicarPrecosPrecificacaoCatalogo();
+        renderizarCatalogo();
+    }
+}
+
+function numeroCatalogo(valor) {
+    return parseFloat(valor) || 0;
+}
+
+function obterPrecoExibicaoCatalogo(peca) {
+    return numeroCatalogo(peca?.preco_precificacao_catalogo ?? peca?.preco_venda);
+}
+
+async function aplicarPrecosPrecificacaoCatalogo() {
+    if (!currentUser || !pecasCatalogo.length) return;
+
+    try {
+        const idsPecas = pecasCatalogo.map(p => p.id).filter(Boolean);
+        if (!idsPecas.length) return;
+
+        const { data: precificacoes, error } = await supabaseClient
+            .from('precificacoes')
+            .select('id, peca_id')
+            .eq('user_id', currentUser.id)
+            .in('peca_id', idsPecas)
+            .order('created_at', { ascending: false });
+
+        if (error || !precificacoes?.length) return;
+
+        const ultimaPorPeca = new Map();
+        precificacoes.forEach(precificacao => {
+            if (!ultimaPorPeca.has(precificacao.peca_id)) {
+                ultimaPorPeca.set(precificacao.peca_id, precificacao.id);
+            }
+        });
+
+        const idsPrecificacao = Array.from(ultimaPorPeca.values());
+        const { data: resultados, error: resultadosError } = await supabaseClient
+            .from('precificacao_resultados')
+            .select('precificacao_id, preco_final')
+            .in('precificacao_id', idsPrecificacao)
+            .order('preco_final', { ascending: true });
+
+        if (resultadosError || !resultados?.length) return;
+
+        const precoPorPrecificacao = new Map();
+        resultados.forEach(resultado => {
+            if (!precoPorPrecificacao.has(resultado.precificacao_id)) {
+                precoPorPrecificacao.set(resultado.precificacao_id, numeroCatalogo(resultado.preco_final));
+            }
+        });
+
+        pecasCatalogo = pecasCatalogo.map(peca => {
+            const precificacaoId = ultimaPorPeca.get(peca.id);
+            const precoPrecificacao = precoPorPrecificacao.get(precificacaoId);
+            return precoPrecificacao ? { ...peca, preco_precificacao_catalogo: precoPrecificacao } : peca;
+        });
+    } catch (err) {
+        console.error('Erro ao aplicar preços da precificação no catálogo:', err);
+    }
 }
 
 function renderizarCatalogo() {
@@ -30,7 +91,7 @@ function renderizarCatalogo() {
                     ${qtdDisponivel} unidades
                 </span>
             </td>
-            <td class="px-6 py-4 text-right text-sm font-black text-indigo-600">${formatadorMoeda.format(p.preco_venda)}</td>
+            <td class="px-6 py-4 text-right text-sm font-black text-indigo-600">${formatadorMoeda.format(obterPrecoExibicaoCatalogo(p))}</td>
             <td class="px-6 py-4 text-center">
                 <div class="flex gap-2 justify-center">
                     <button onclick="produzirPeca(${p.id})" class="px-3 py-2 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1" title="Registrar produção">
@@ -487,6 +548,8 @@ async function salvarPrecificacaoPecaAtual() {
     const dados = calcularPrecificacaoPecaAtual();
     if (!dados || !currentUser) return showToast('Abra uma peça para precificar.', 'error');
 
+    const precoOficialPeca = numeroCatalogo(dados.preco_recomendado);
+
     const { data: precificacao, error } = await supabaseClient
         .from('precificacoes')
         .insert([{
@@ -533,5 +596,20 @@ async function salvarPrecificacaoPecaAtual() {
         return showToast('Precificação criada, mas erro ao salvar resultados.', 'error');
     }
 
-    showToast('Precificação salva com sucesso!');
+    const { error: pecaError } = await supabaseClient
+        .from('pecas')
+        .update({ preco_venda: precoOficialPeca })
+        .eq('id', dados.peca_id)
+        .eq('user_id', currentUser.id);
+
+    if (pecaError) {
+        console.error('Erro ao atualizar preço oficial da peça:', pecaError);
+        return showToast('Precificação salva, mas erro ao atualizar o preço oficial da peça.', 'error');
+    }
+
+    pecasCatalogo = pecasCatalogo.map(peca => String(peca.id) === String(dados.peca_id)
+        ? { ...peca, preco_venda: precoOficialPeca, preco_precificacao_catalogo: precoOficialPeca }
+        : peca);
+    renderizarCatalogo();
+    showToast('Precificação salva e preço oficial da peça atualizado!');
 }
