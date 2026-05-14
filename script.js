@@ -182,6 +182,8 @@ async function salvarPrecificacaoConfiguracoes(silencioso = false) {
 
 let precificacaoConfigTimer = null;
 function salvarPrecificacaoConfiguracoesAuto() {
+    precificacaoConfig = { ...precificacaoConfig, ...lerCamposPrecificacaoConfig() };
+    if (typeof calcularPrecificacaoPecaAtual === 'function') calcularPrecificacaoPecaAtual();
     clearTimeout(precificacaoConfigTimer);
     precificacaoConfigTimer = setTimeout(() => salvarPrecificacaoConfiguracoes(true), 800);
 }

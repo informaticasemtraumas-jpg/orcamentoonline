@@ -118,17 +118,23 @@ function renderizarCatalogo() {
 
 function abrirModalNovaPeca() {
     composicaoAtual = [];
+    precificacaoAtual = null;
     document.getElementById('peca-edit-id').value = '';
     document.getElementById('peca-nome').value = '';
     document.getElementById('peca-nome').disabled = false;
     document.getElementById('peca-tempo').value = '';
     document.getElementById('peca-tempo').disabled = false;
-    document.getElementById('peca-margem').value = '100';
-    document.getElementById('peca-precificacao-bloco').classList.add('hidden');
+    document.getElementById('peca-margem').value = precificacaoConfig.margem_padrao || 100;
+    document.getElementById('prec-peca-tempo-horas').value = '0.00';
+    document.getElementById('prec-peca-complexidade').value = 'Padrão';
+    document.getElementById('prec-peca-perda').value = precificacaoConfig.percentual_perda_padrao || 0;
+    document.getElementById('prec-peca-observacoes').value = '';
+    document.getElementById('peca-precificacao-bloco').classList.remove('hidden');
     document.getElementById('btn-salvar-peca-catalogo').classList.remove('hidden');
     renderizarComposicao();
     calcularPrecoPeca();
     document.getElementById('modal-peca').classList.remove('hidden');
+    calcularPrecificacaoPecaAtual();
 }
 
 function fecharModalPeca() { document.getElementById('modal-peca').classList.add('hidden'); }
@@ -144,8 +150,7 @@ async function adicionarMaterialAPeca() {
     composicaoAtual.push({ material_id: material.id, nome: material.nome, unidade: material.unidade, preco: custoMedio || material.preco_unitario, qtd, preco_atual: material.preco_unitario });
     
     renderizarComposicao();
-    calcularPrecoPeca();
-    if (typeof calcularPrecificacaoPecaAtual === 'function') calcularPrecificacaoPecaAtual();
+    atualizarPrecificacaoTempoReal();
     document.getElementById('peca-material-qtd').value = '';
 }
 
@@ -171,8 +176,23 @@ function renderizarComposicao() {
 function removerDaComposicao(idx) {
     composicaoAtual.splice(idx, 1);
     renderizarComposicao();
+    atualizarPrecificacaoTempoReal();
+}
+
+function blocoPrecificacaoPecaVisivel() {
+    const bloco = document.getElementById('peca-precificacao-bloco');
+    return Boolean(bloco && !bloco.classList.contains('hidden'));
+}
+
+function sincronizarTempoPrecificacaoComFicha() {
+    const tempoMinutos = parseFloat(document.getElementById('peca-tempo')?.value) || 0;
+    const tempoHorasEl = document.getElementById('prec-peca-tempo-horas');
+    if (tempoHorasEl) tempoHorasEl.value = (tempoMinutos / 60).toFixed(2);
+}
+
+function atualizarPrecificacaoTempoReal() {
     calcularPrecoPeca();
-    if (typeof calcularPrecificacaoPecaAtual === 'function') calcularPrecificacaoPecaAtual();
+    if (blocoPrecificacaoPecaVisivel()) calcularPrecificacaoPecaAtual();
 }
 
 function calcularPrecoPeca() {
@@ -186,18 +206,25 @@ function calcularPrecoPeca() {
     document.getElementById('peca-res-materiais').innerText = formatadorMoeda.format(custoMateriais);
     document.getElementById('peca-res-maodeobra').innerText = formatadorMoeda.format(custoMaoDeObra);
     document.getElementById('peca-res-venda').innerText = formatadorMoeda.format(precoVenda);
+    sincronizarTempoPrecificacaoComFicha();
     return { custoMateriais, custoMaoDeObra, precoVenda };
 }
 
 async function salvarPecaCompleta() {
-    const nome = document.getElementById('peca-nome').value;
+    const nome = document.getElementById('peca-nome').value.trim();
     const tempo = parseFloat(document.getElementById('peca-tempo').value) || 0;
-    const { precoVenda, custoMaoDeObra } = calcularPrecoPeca();
+    const { custoMaoDeObra } = calcularPrecoPeca();
+    const dadosPrecificacao = calcularPrecificacaoPecaAtual();
+    const precoOficialInicial = numeroCatalogo(dadosPrecificacao?.preco_recomendado);
 
     if (!nome || composicaoAtual.length === 0) return showAlert("Preencha o nome e adicione materiais.", "error");
 
     const { data: peca, error: pecaError } = await supabaseClient.from('pecas').insert([{
-        user_id: currentUser.id, nome, tempo_producao: tempo, mao_de_obra: custoMaoDeObra, preco_venda: precoVenda
+        user_id: currentUser.id,
+        nome,
+        tempo_producao: tempo,
+        mao_de_obra: custoMaoDeObra,
+        preco_venda: precoOficialInicial,
     }]).select().single();
 
     if (pecaError) {
@@ -210,12 +237,17 @@ async function salvarPecaCompleta() {
 
     if (compError) {
         console.error(compError);
-        showToast("Erro ao salvar composição", "error");
-    } else { 
-        showToast("Peça salva no catálogo!"); 
-        fecharModalPeca(); 
-        carregarCatalogo(); 
+        return showToast("Erro ao salvar composição", "error");
     }
+
+    document.getElementById('peca-edit-id').value = peca.id;
+    const dadosFinais = calcularPrecificacaoPecaAtual();
+    const precificacaoSalva = await persistirPrecificacaoPeca(dadosFinais, { mostrarToast: false });
+    if (!precificacaoSalva) return;
+
+    showToast("Peça salva no catálogo com precificação!");
+    fecharModalPeca();
+    carregarCatalogo();
 }
 
 async function ajustarSaldoPeca(id) {
@@ -450,11 +482,9 @@ async function abrirPrecificacaoPeca(id) {
 
 function calcularPrecificacaoPecaAtual() {
     const pecaId = document.getElementById('peca-edit-id')?.value;
-    if (!pecaId) return null;
-
     const tempoHoras = parseFloat(document.getElementById('prec-peca-tempo-horas').value) || 0;
     const percentualPerda = parseFloat(document.getElementById('prec-peca-perda').value) || 0;
-    const margemPadrao = parseFloat(precificacaoConfig.margem_padrao) || 0;
+    const margemPadrao = parseFloat(document.getElementById('peca-margem')?.value) || parseFloat(precificacaoConfig.margem_padrao) || 0;
     const custoMaterialSemPerda = composicaoAtual.reduce((acc, item) => acc + ((parseFloat(item.qtd) || 0) * (parseFloat(item.preco) || 0)), 0);
     const custoMaterial = custoMaterialSemPerda * (1 + (percentualPerda / 100));
     const custoMaoObra = tempoHoras * (parseFloat(precificacaoConfig.valor_hora) || 0);
@@ -517,7 +547,7 @@ function calcularPrecificacaoPecaAtual() {
     }).join('');
 
     precificacaoAtual = {
-        peca_id: parseInt(pecaId),
+        peca_id: pecaId ? parseInt(pecaId) : null,
         nome_peca: document.getElementById('peca-nome').value,
         tempo_producao_horas: tempoHoras,
         complexidade: document.getElementById('prec-peca-complexidade').value,
@@ -544,9 +574,16 @@ function calcularPrecificacaoPecaAtual() {
     return precificacaoAtual;
 }
 
-async function salvarPrecificacaoPecaAtual() {
-    const dados = calcularPrecificacaoPecaAtual();
-    if (!dados || !currentUser) return showToast('Abra uma peça para precificar.', 'error');
+async function persistirPrecificacaoPeca(dados, { mostrarToast = true } = {}) {
+    if (!dados || !currentUser) {
+        showToast('Abra uma peça para precificar.', 'error');
+        return false;
+    }
+
+    if (!dados.peca_id) {
+        showToast('Salve a peça no catálogo para gravar a precificação.', 'error');
+        return false;
+    }
 
     const precoOficialPeca = numeroCatalogo(dados.preco_recomendado);
 
@@ -570,7 +607,8 @@ async function salvarPrecificacaoPecaAtual() {
 
     if (error) {
         console.error('Erro ao salvar precificação:', error);
-        return showToast('Erro ao salvar precificação.', 'error');
+        showToast('Erro ao salvar precificação.', 'error');
+        return false;
     }
 
     const itens = dados.itens.map(item => ({ user_id: currentUser.id, precificacao_id: precificacao.id, ...item }));
@@ -587,13 +625,15 @@ async function salvarPrecificacaoPecaAtual() {
     const { error: itensError } = await supabaseClient.from('precificacao_itens').insert(itens);
     if (itensError) {
         console.error('Erro ao salvar itens da precificação:', itensError);
-        return showToast('Precificação criada, mas erro ao salvar itens.', 'error');
+        showToast('Precificação criada, mas erro ao salvar itens.', 'error');
+        return false;
     }
 
     const { error: resultadosError } = await supabaseClient.from('precificacao_resultados').insert(resultados);
     if (resultadosError) {
         console.error('Erro ao salvar resultados da precificação:', resultadosError);
-        return showToast('Precificação criada, mas erro ao salvar resultados.', 'error');
+        showToast('Precificação criada, mas erro ao salvar resultados.', 'error');
+        return false;
     }
 
     const { error: pecaError } = await supabaseClient
@@ -604,12 +644,22 @@ async function salvarPrecificacaoPecaAtual() {
 
     if (pecaError) {
         console.error('Erro ao atualizar preço oficial da peça:', pecaError);
-        return showToast('Precificação salva, mas erro ao atualizar o preço oficial da peça.', 'error');
+        showToast('Precificação salva, mas erro ao atualizar o preço oficial da peça.', 'error');
+        return false;
     }
 
     pecasCatalogo = pecasCatalogo.map(peca => String(peca.id) === String(dados.peca_id)
         ? { ...peca, preco_venda: precoOficialPeca, preco_precificacao_catalogo: precoOficialPeca }
         : peca);
     renderizarCatalogo();
-    showToast('Precificação salva e preço oficial da peça atualizado!');
+    if (mostrarToast) showToast('Precificação salva e preço oficial da peça atualizado!');
+    return true;
+}
+
+async function salvarPrecificacaoPecaAtual() {
+    const pecaId = document.getElementById('peca-edit-id')?.value;
+    if (!pecaId) return salvarPecaCompleta();
+
+    const dados = calcularPrecificacaoPecaAtual();
+    await persistirPrecificacaoPeca(dados);
 }
