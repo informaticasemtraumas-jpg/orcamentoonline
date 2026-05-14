@@ -229,36 +229,58 @@
 
         <!-- VIEW: ESTOQUE -->
         <div id="view-estoque" class="hidden space-y-6">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 class="text-2xl font-black text-slate-800">Estoque de Materiais</h2>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <div class="relative flex-1 md:w-64">
-                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
-                        <input type="text" id="filtro-estoque" oninput="filtrarEstoque()" 
-                               class="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 shadow-sm font-bold text-sm" 
-                               placeholder="Procurar material...">
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Lista compacta</p>
+                        <h2 class="text-2xl font-black text-slate-800">Estoque de Materiais</h2>
+                        <p class="text-sm text-slate-400 font-bold">Visual enxuto para consultar, filtrar e operar materiais sem carregar a página inteira.</p>
                     </div>
-                    <button onclick="abrirModalRegistrarCompra()" class="px-6 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2">
-                        <i data-lucide="shopping-cart" class="w-5 h-5"></i> REGISTRAR COMPRA
-                    </button>
-                    <button onclick="abrirModalNovoMaterial()" class="px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2">
-                        <i data-lucide="plus" class="w-5 h-5"></i> NOVO MATERIAL
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                        <button onclick="abrirModalRegistrarCompra()" class="px-5 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2">
+                            <i data-lucide="shopping-cart" class="w-5 h-5"></i> REGISTRAR COMPRA
+                        </button>
+                        <button onclick="abrirModalNovoMaterial()" class="px-5 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i> NOVO MATERIAL
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div class="relative md:col-span-2">
+                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                        <input type="text" id="filtro-estoque" oninput="filtrarEstoque()"
+                               class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 shadow-sm font-bold text-sm"
+                               placeholder="Pesquisar material...">
+                    </div>
+                    <select id="filtro-status-estoque" onchange="filtrarEstoque()" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 shadow-sm font-bold text-sm text-slate-600">
+                        <option value="todos">Todos</option>
+                        <option value="normal">Normal</option>
+                        <option value="baixo">Baixo estoque</option>
+                        <option value="zerado">Zerado</option>
+                    </select>
+                    <select id="ordenacao-estoque" onchange="filtrarEstoque()" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 shadow-sm font-bold text-sm text-slate-600">
+                        <option value="nome">Nome</option>
+                        <option value="menor-quantidade">Menor quantidade</option>
+                        <option value="maior-quantidade">Maior quantidade</option>
+                        <option value="maior-valor">Maior valor em estoque</option>
+                    </select>
                 </div>
             </div>
             
-            <!-- Tabela de Estoque -->
+            <!-- Lista compacta de Estoque -->
             <div class="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço Unit.</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Total em Estoque</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço unitário</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor em estoque</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="lista-estoque">
@@ -268,25 +290,15 @@
                 </div>
                 <div id="estoque-vazio" class="hidden text-center py-12 text-slate-400 font-bold">
                     <i data-lucide="package" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
-                    <p>Nenhum material cadastrado ainda</p>
+                    <p>Nenhum material encontrado</p>
                 </div>
 
-                <!-- Controles de Paginação -->
+                <!-- Carregamento progressivo -->
                 <div id="paginacao-estoque" class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p class="text-xs font-bold text-slate-500" id="info-paginacao-estoque">
-                        Mostrando 0 de 0 materiais
-                    </p>
-                    <div class="flex items-center gap-2">
-                        <button onclick="mudarPaginaEstoque(-1)" id="btn-prev-estoque" class="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
-                        </button>
-                        <div id="numeros-paginacao-estoque" class="flex gap-1">
-                            <!-- Números das páginas via JS -->
-                        </div>
-                        <button onclick="mudarPaginaEstoque(1)" id="btn-next-estoque" class="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
-                        </button>
-                    </div>
+                    <p class="text-xs font-bold text-slate-500" id="info-paginacao-estoque">Mostrando 0 de 0 materiais</p>
+                    <button onclick="verMaisEstoque()" id="btn-ver-mais-estoque" class="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-black">
+                        VER MAIS
+                    </button>
                 </div>
             </div>
         </div>
@@ -810,6 +822,17 @@
         </div>
 
 
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: DETALHES DO MATERIAL -->
+    <!-- ============================================================ -->
+    <div id="modal-detalhes-material" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
+            <div id="detalhes-material-conteudo">
+                <!-- Detalhes via JS -->
+            </div>
+        </div>
     </div>
 
     <!-- ============================================================ -->

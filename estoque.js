@@ -28,47 +28,110 @@ function atualizarSelectMateriais() {
         materiais.map(m => `<option value="${m.id}">${m.nome} (${m.unidade}) - R$ ${parseFloat(m.preco_unitario).toFixed(2)}</option>`).join('');
 }
 
-function renderizarListaEstoque(listaFiltrada = null) {
+const ESTOQUE_LIMITE_BAIXO = 5;
+const ESTOQUE_LOTE_EXIBICAO = 20;
+let estoqueItensVisiveis = ESTOQUE_LOTE_EXIBICAO;
+let estoqueFiltroStatus = 'todos';
+let estoqueOrdenacao = 'nome';
+
+function estoqueEscapeHtml(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function estoqueNumero(valor) {
+    return parseFloat(valor) || 0;
+}
+
+function estoqueQuantidadeFormatada(valor) {
+    const numero = estoqueNumero(valor);
+    return parseFloat(numero.toFixed(4)).toString();
+}
+
+function obterStatusEstoque(material) {
+    const quantidade = estoqueNumero(material?.quantidade);
+    if (quantidade <= 0) {
+        return { chave: 'zerado', texto: 'Zerado', classe: 'bg-red-100 text-red-700 border-red-200' };
+    }
+    if (quantidade <= ESTOQUE_LIMITE_BAIXO) {
+        return { chave: 'baixo', texto: 'Baixo estoque', classe: 'bg-amber-100 text-amber-700 border-amber-200' };
+    }
+    return { chave: 'normal', texto: 'Normal', classe: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+}
+
+function obterMateriaisEstoqueFiltrados() {
+    const termo = (document.getElementById('filtro-estoque')?.value || '').toLowerCase().trim();
+    const status = document.getElementById('filtro-status-estoque')?.value || estoqueFiltroStatus;
+    const ordenacao = document.getElementById('ordenacao-estoque')?.value || estoqueOrdenacao;
+
+    estoqueFiltroStatus = status;
+    estoqueOrdenacao = ordenacao;
+
+    return materiais
+        .filter(material => {
+            const statusMaterial = obterStatusEstoque(material).chave;
+            const textoBusca = `${material.nome || ''} ${material.descricao || ''} ${material.unidade || ''}`.toLowerCase();
+            const passaBusca = !termo || textoBusca.includes(termo);
+            const passaStatus = status === 'todos' || statusMaterial === status;
+            return passaBusca && passaStatus;
+        })
+        .sort((a, b) => {
+            const qtdA = estoqueNumero(a.quantidade);
+            const qtdB = estoqueNumero(b.quantidade);
+            const valorA = qtdA * estoqueNumero(a.preco_unitario);
+            const valorB = qtdB * estoqueNumero(b.preco_unitario);
+
+            if (ordenacao === 'menor-quantidade') return qtdA - qtdB;
+            if (ordenacao === 'maior-quantidade') return qtdB - qtdA;
+            if (ordenacao === 'maior-valor') return valorB - valorA;
+            return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+        });
+}
+
+function renderizarListaEstoque() {
     const container = document.getElementById('lista-estoque');
     const vazio = document.getElementById('estoque-vazio');
     if (!container) return;
 
-    const lista = listaFiltrada || materiais;
+    const lista = obterMateriaisEstoqueFiltrados();
+    const itensPagina = lista.slice(0, estoqueItensVisiveis);
 
     if (lista.length === 0) {
         container.innerHTML = '';
-        vazio.classList.remove('hidden');
+        vazio?.classList.remove('hidden');
+        renderizarControleVerMaisEstoque(0, 0);
         return;
     }
 
-    vazio.classList.add('hidden');
-    container.innerHTML = lista.map(item => {
-        const preco = parseFloat(item.preco_unitario) || 0;
-        const qtd = parseFloat(item.quantidade) || 0;
-        const totalEstoque = (qtd * preco).toFixed(2);
-        const qtdFormatada = parseFloat(qtd.toFixed(4));
-        
-        // Cor de alerta se estoque baixo (menos de 5 unidades ou 1 metro)
-        const alertaEstoque = qtd < 5 ? 'bg-orange-50' : '';
-        
+    vazio?.classList.add('hidden');
+    container.innerHTML = itensPagina.map(item => {
+        const preco = estoqueNumero(item.preco_unitario);
+        const qtd = estoqueNumero(item.quantidade);
+        const totalEstoque = qtd * preco;
+        const status = obterStatusEstoque(item);
+
         return `
-        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all ${alertaEstoque}">
-            <td class="px-6 py-4 text-sm font-bold text-slate-800">
-                <div>
-                    <p class="font-black">${item.nome}</p>
-                    ${item.descricao ? `<p class="text-xs text-slate-400 mt-1">${item.descricao}</p>` : ''}
+        <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-all">
+            <td class="px-4 py-3 text-sm font-bold text-slate-800 min-w-[220px]">
+                <div class="space-y-0.5">
+                    <p class="font-black leading-tight">${estoqueEscapeHtml(item.nome)}</p>
+                    ${item.descricao ? `<p class="text-[11px] text-slate-400 font-bold leading-tight line-clamp-1">${estoqueEscapeHtml(item.descricao)}</p>` : ''}
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-slate-600 font-bold">${item.unidade}</td>
-            <td class="px-6 py-4 text-right">
-                <span class="inline-block px-3 py-1 ${qtd < 5 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'} font-bold rounded-lg text-sm">
-                    ${qtdFormatada}
-                </span>
+            <td class="px-4 py-3 text-right text-sm font-black text-slate-700 whitespace-nowrap">${estoqueQuantidadeFormatada(qtd)}</td>
+            <td class="px-4 py-3 text-left text-xs font-bold text-slate-500 whitespace-nowrap">${estoqueEscapeHtml(item.unidade || '-')}</td>
+            <td class="px-4 py-3 text-right text-sm font-bold text-slate-600 whitespace-nowrap">${formatadorMoeda.format(preco)}</td>
+            <td class="px-4 py-3 text-right text-sm font-black text-emerald-600 whitespace-nowrap">${formatadorMoeda.format(totalEstoque)}</td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+                <span class="inline-flex px-2.5 py-1 rounded-full border text-[10px] font-black uppercase ${status.classe}">${status.texto}</span>
             </td>
-            <td class="px-6 py-4 text-right text-sm font-bold text-slate-700">R$ ${preco.toFixed(2)}</td>
-            <td class="px-6 py-4 text-right text-sm font-black text-emerald-600">R$ ${totalEstoque}</td>
-            <td class="px-6 py-4 text-center">
-                <div class="flex gap-2 justify-center">
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+                <div class="flex gap-1.5 justify-center">
+                    <button onclick="abrirDetalhesMaterial(${item.id})" class="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-all text-[10px] font-black" title="Ver detalhes">VER</button>
                     <button onclick="abrirModalEditarMaterial(${item.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-all" title="Editar">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
@@ -79,12 +142,149 @@ function renderizarListaEstoque(listaFiltrada = null) {
             </td>
         </tr>`;
     }).join('');
+
+    renderizarControleVerMaisEstoque(itensPagina.length, lista.length);
     lucide.createIcons();
 }
 
+function renderizarControleVerMaisEstoque(exibidos, total) {
+    const info = document.getElementById('info-paginacao-estoque');
+    const botao = document.getElementById('btn-ver-mais-estoque');
+    const controles = document.getElementById('paginacao-estoque');
+
+    if (info) info.innerText = `Mostrando ${exibidos} de ${total} materiais`;
+    if (botao) {
+        botao.classList.toggle('hidden', exibidos >= total);
+        botao.disabled = exibidos >= total;
+    }
+    if (controles) controles.classList.toggle('hidden', total === 0);
+}
+
+function verMaisEstoque() {
+    estoqueItensVisiveis += ESTOQUE_LOTE_EXIBICAO;
+    renderizarListaEstoque();
+}
+
 function filtrarEstoque() {
-    const termo = document.getElementById('filtro-estoque').value.toLowerCase().trim();
-    renderizarListaEstoque(termo ? materiais.filter(m => m.nome.toLowerCase().includes(termo)) : null);
+    estoqueItensVisiveis = ESTOQUE_LOTE_EXIBICAO;
+    renderizarListaEstoque();
+}
+
+function mudarPaginaEstoque() {
+    verMaisEstoque();
+}
+
+async function abrirDetalhesMaterial(id) {
+    const material = materiais.find(m => String(m.id) === String(id));
+    if (!material) return showToast('Material não encontrado.', 'error');
+
+    const modal = document.getElementById('modal-detalhes-material');
+    const conteudo = document.getElementById('detalhes-material-conteudo');
+    if (!modal || !conteudo) return;
+
+    const preco = estoqueNumero(material.preco_unitario);
+    const qtd = estoqueNumero(material.quantidade);
+    const total = qtd * preco;
+    const status = obterStatusEstoque(material);
+
+    modal.classList.remove('hidden');
+    conteudo.innerHTML = '<div class="py-10 text-center text-slate-400 font-bold">Carregando detalhes...</div>';
+
+    let pecasRelacionadas = [];
+    let historicoCompras = [];
+
+    try {
+        const { data: composicoes, error: composicaoError } = await supabaseClient
+            .from('composicao_peca')
+            .select('peca_id, quantidade_usada')
+            .eq('material_id', id);
+
+        if (!composicaoError && composicoes?.length) {
+            const idsPecas = [...new Set(composicoes.map(item => item.peca_id).filter(Boolean))];
+            const pecasConhecidas = pecasCatalogo.filter(peca => idsPecas.includes(peca.id));
+            let pecasBanco = [];
+
+            const idsFaltantes = idsPecas.filter(pecaId => !pecasConhecidas.some(peca => peca.id === pecaId));
+            if (idsFaltantes.length) {
+                const { data } = await supabaseClient
+                    .from('pecas')
+                    .select('id, nome')
+                    .in('id', idsFaltantes);
+                pecasBanco = data || [];
+            }
+
+            const pecasMap = new Map([...pecasConhecidas, ...pecasBanco].map(peca => [peca.id, peca.nome]));
+            pecasRelacionadas = composicoes.map(item => ({
+                nome: pecasMap.get(item.peca_id) || `Peça #${item.peca_id}`,
+                quantidade_usada: item.quantidade_usada,
+            }));
+        }
+    } catch (err) {
+        console.error('Erro ao carregar peças relacionadas ao material:', err);
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('compras_itens')
+            .select('quantidade, valor_unitario, valor_total')
+            .eq('material_id', id)
+            .order('id', { ascending: false })
+            .limit(5);
+
+        if (!error) historicoCompras = data || [];
+    } catch (err) {
+        console.error('Erro ao carregar histórico simples de compras do material:', err);
+    }
+
+    conteudo.innerHTML = `
+        <div class="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+            <div>
+                <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Detalhes do material</p>
+                <h3 class="text-2xl font-black text-slate-800">${estoqueEscapeHtml(material.nome)}</h3>
+                <p class="text-sm text-slate-400 font-bold mt-1">${estoqueEscapeHtml(material.descricao || 'Sem descrição cadastrada.')}</p>
+            </div>
+            <button onclick="fecharDetalhesMaterial()" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-7 h-7"></i></button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[10px] font-black text-slate-400 uppercase">Quantidade</p><p class="font-black text-slate-800">${estoqueQuantidadeFormatada(qtd)}</p></div>
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[10px] font-black text-slate-400 uppercase">Unidade</p><p class="font-black text-slate-800">${estoqueEscapeHtml(material.unidade || '-')}</p></div>
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[10px] font-black text-slate-400 uppercase">Preço unitário</p><p class="font-black text-slate-800">${formatadorMoeda.format(preco)}</p></div>
+            <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100"><p class="text-[10px] font-black text-emerald-600 uppercase">Valor estimado</p><p class="font-black text-emerald-700">${formatadorMoeda.format(total)}</p></div>
+            <div class="p-4 bg-white rounded-2xl border border-slate-100"><p class="text-[10px] font-black text-slate-400 uppercase">Status</p><span class="inline-flex mt-1 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase ${status.classe}">${status.texto}</span></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                <h4 class="font-black text-slate-800 mb-3">Peças que usam este material</h4>
+                <div class="space-y-2">
+                    ${pecasRelacionadas.length ? pecasRelacionadas.map(item => `
+                        <div class="flex justify-between gap-3 text-sm bg-white border border-slate-100 rounded-xl p-3">
+                            <span class="font-bold text-slate-700">${estoqueEscapeHtml(item.nome)}</span>
+                            <span class="font-black text-indigo-600">${estoqueQuantidadeFormatada(item.quantidade_usada)} ${estoqueEscapeHtml(material.unidade || '')}</span>
+                        </div>
+                    `).join('') : '<p class="text-sm text-slate-400 font-bold">Nenhuma peça relacionada encontrada.</p>'}
+                </div>
+            </div>
+            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                <h4 class="font-black text-slate-800 mb-3">Histórico simples de compras</h4>
+                <div class="space-y-2">
+                    ${historicoCompras.length ? historicoCompras.map(item => `
+                        <div class="flex justify-between gap-3 text-sm bg-white border border-slate-100 rounded-xl p-3">
+                            <span class="font-bold text-slate-700">${estoqueQuantidadeFormatada(item.quantidade)} ${estoqueEscapeHtml(material.unidade || '')}</span>
+                            <span class="font-black text-red-500">${formatadorMoeda.format(item.valor_total || 0)}</span>
+                        </div>
+                    `).join('') : '<p class="text-sm text-slate-400 font-bold">Nenhum histórico disponível.</p>'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    lucide.createIcons();
+}
+
+function fecharDetalhesMaterial() {
+    document.getElementById('modal-detalhes-material')?.classList.add('hidden');
 }
 
 // ---- Modal de Material ----
