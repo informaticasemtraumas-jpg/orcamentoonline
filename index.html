@@ -108,12 +108,23 @@
 
                 <div id="corte-alerta" class="hidden mb-6 p-4 rounded-2xl border text-sm font-bold"></div>
 
+                <div class="bg-indigo-50 p-2 rounded-3xl border border-indigo-100 mb-6 grid grid-cols-1 md:grid-cols-2 gap-2" role="group" aria-label="Modo de cálculo da Calculadora de Corte">
+                    <button type="button" id="corte-modo-tenho" onclick="setModoCorte('tenho')" class="p-4 rounded-2xl bg-white text-indigo-700 shadow-sm text-left transition-all">
+                        <span class="block text-sm font-black">Tenho tecido</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Quero saber quantas peças cabem.</span>
+                    </button>
+                    <button type="button" id="corte-modo-compra" onclick="setModoCorte('compra')" class="p-4 rounded-2xl text-slate-500 text-left transition-all">
+                        <span class="block text-sm font-black">Quero calcular compra</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Quero fazer X peças e saber quanto tecido comprar.</span>
+                    </button>
+                </div>
+
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div class="xl:col-span-2 space-y-6">
                         <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-5">
                             <div>
                                 <h3 class="text-lg font-black text-slate-800">A) Dados do tecido</h3>
-                                <p class="text-xs text-slate-500 font-semibold">Informe o tecido disponível/comprado para o corte.</p>
+                                <p id="corte-texto-tecido" class="text-xs text-slate-500 font-semibold">Informe o tecido disponível para descobrir quantas peças cabem.</p>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="space-y-1">
@@ -121,11 +132,11 @@
                                     <input type="number" min="0" step="0.01" id="corte-tecido-largura" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 140">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento disponível (cm)</label>
+                                    <label id="corte-label-comprimento" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento disponível (cm)</label>
                                     <input type="number" min="0" step="0.01" id="corte-tecido-comprimento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 300">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço pago (opcional)</label>
+                                    <label id="corte-label-preco" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço pago (opcional)</label>
                                     <input type="number" min="0" step="0.01" id="corte-preco" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 75,00">
                                 </div>
                             </div>
@@ -158,8 +169,8 @@
                                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento da peça (cm)</label>
                                     <input type="number" min="0" step="0.01" id="corte-peca-comprimento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 45">
                                 </div>
-                                <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade desejada</label>
+                                <div id="corte-campo-quantidade" class="space-y-1">
+                                    <label id="corte-label-quantidade" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade desejada</label>
                                     <input type="number" min="0" step="1" id="corte-quantidade" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Opcional">
                                 </div>
                                 <div class="space-y-1">
@@ -192,18 +203,20 @@
                             <h3 class="text-xl font-black">Plano de corte</h3>
                         </div>
                         <div class="p-5 bg-white/10 rounded-3xl border border-white/10">
-                            <p class="text-xs font-bold text-indigo-100 uppercase">Peças que cabem</p>
+                            <p id="corte-total-label" class="text-xs font-bold text-indigo-100 uppercase">Peças que cabem</p>
                             <p id="corte-total" class="text-5xl font-black mt-2">0</p>
                             <p id="corte-orientacao" class="text-sm font-bold text-slate-300 mt-2">Preencha os dados e clique em calcular.</p>
                         </div>
                         <div id="corte-resultados" class="space-y-3 text-sm">
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Na largura</span><strong id="corte-na-largura">0</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">No comprimento</span><strong id="corte-no-comprimento">0</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Comprimento usado</span><strong id="corte-comprimento-usado">0 cm</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Comprimento restante</span><strong id="corte-comprimento-restante">0 cm</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Sobra aproximada</span><strong id="corte-sobra">0 m²</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Área total</span><strong id="corte-area-total">0 m²</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Área usada</span><strong id="corte-area-usada">0 m²</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-na-largura" class="text-slate-300">Peças por faixa/largura</span><strong id="corte-na-largura">0</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-no-comprimento" class="text-slate-300">Peças no comprimento</span><strong id="corte-no-comprimento">0</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-comprimento-usado" class="text-slate-300">Comprimento usado</span><strong id="corte-comprimento-usado">0 cm</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-comprimento-restante" class="text-slate-300">Comprimento restante</span><strong id="corte-comprimento-restante">0 cm</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-sobra" class="text-slate-300">Sobra aproximada em comprimento</span><strong id="corte-sobra">0 cm</strong></div>
+                            <div class="pt-2 text-[11px] leading-relaxed text-slate-400">
+                                <p class="font-black text-slate-300">Área estimada apenas para referência</p>
+                                <p><span>Área total:</span> <strong id="corte-area-total">0 m²</strong> • <span>Área usada:</span> <strong id="corte-area-usada">0 m²</strong></p>
+                            </div>
                             <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Custo por metro linear</span><strong id="corte-custo-metro">—</strong></div>
                             <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Custo estimado por peça</span><strong id="corte-custo-peca">—</strong></div>
                         </div>
@@ -330,17 +343,17 @@
             <!-- Tabela de Catálogo -->
             <div class="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tempo Prod.</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Prontas para Venda</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço de Venda</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Tempo</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Prontas</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Preço</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="lista-catalogo">
+                        <tbody id="lista-catalogo" class="divide-y divide-slate-100">
                             <!-- Peças via JS -->
                         </tbody>
                     </table>
@@ -348,6 +361,10 @@
                 <div id="catalogo-vazio" class="hidden text-center py-12 text-slate-400 font-bold">
                     <i data-lucide="scissors" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
                     <p>Nenhuma peça no catálogo ainda</p>
+                </div>
+                <div id="catalogo-paginacao" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-100">
+                    <p id="catalogo-contador" class="text-xs font-bold text-slate-400">Mostrando 0 de 0 peças</p>
+                    <button type="button" id="catalogo-ver-mais" onclick="verMaisCatalogo()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-100 transition-all">Ver Mais</button>
                 </div>
             </div>
         </div>
@@ -362,10 +379,6 @@
                         <p class="text-sm text-slate-400 font-bold">Visual enxuto para consultar, filtrar e operar materiais sem carregar a página inteira.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                        <!-- Fluxo antigo oculto: compras agora são feitas em Caixa → Nova Compra -->
-                        <button onclick="abrirModalRegistrarCompra()" class="hidden px-5 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 items-center justify-center gap-2" aria-hidden="true" tabindex="-1">
-                            <i data-lucide="shopping-cart" class="w-5 h-5"></i> REGISTRAR COMPRA
-                        </button>
                         <button onclick="abrirModalNovoMaterial()" class="px-5 py-3 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2">
                             <i data-lucide="plus" class="w-5 h-5"></i> NOVO MATERIAL
                         </button>
@@ -1037,55 +1050,6 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- MODAL: REGISTRAR COMPRA DE MATERIAL -->
-    <!-- Fluxo antigo oculto: compras agora são feitas em Caixa → Nova Compra -->
-    <!-- ============================================================ -->
-    <div id="modal-compra" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center p-4" aria-hidden="true">
-        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8 space-y-6">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
-                <h2 class="text-2xl font-black text-slate-800">Registrar Compra</h2>
-                <button onclick="fecharModalCompra()" class="text-slate-400 hover:text-red-500">
-                    <i data-lucide="x" class="w-8 h-8"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Material Comprado</label>
-                    <select id="compra-material-id" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300">
-                        <!-- Materiais via JS -->
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade</label>
-                        <div class="relative">
-                            <input type="number" id="compra-quantidade" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Ex: 10">
-                            <button type="button" onclick="abrirCalculadoraAreaCompra()" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all" title="Calcular area em m2">
-                                <i data-lucide="calculator" class="w-5 h-5"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Total Pago (R$)</label>
-                        <input type="number" id="compra-valor-total" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Ex: 150.00">
-                    </div>
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fornecedor (opcional)</label>
-                    <input type="text" id="compra-fornecedor" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 shadow-sm hover:border-slate-300" placeholder="Nome da loja ou fornecedor">
-                </div>
-            </div>
-
-            <button onclick="salvarCompraMaterial()" class="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
-                CONFIRMAR COMPRA E ATUALIZAR ESTOQUE
-            </button>
-        </div>
-    </div>
-
-    <!-- ============================================================ -->
     <!-- MODAL: NOVA PEÇA (FICHA TÉCNICA) -->
     <!-- ============================================================ -->
     <div id="modal-peca" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1342,176 +1306,6 @@
         </div>
     </div>
 
-    <!-- ============================================================ -->
-    <!-- MODAL: VENDA DE PEÇAS (PDV) -->
-    <!-- ============================================================ -->
-    <div id="modal-venda" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8 space-y-6">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
-                <h2 class="text-2xl font-black text-slate-800">Venda de Peça</h2>
-                <button onclick="fecharModalVenda()" class="text-slate-400 hover:text-red-500">
-                    <i data-lucide="x" class="w-8 h-8"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <!-- Nome do Cliente -->
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Cliente</label>
-                    <input type="text" id="venda-cliente" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" placeholder="Nome ou Razão Social">
-                </div>
-
-                <!-- Peça Selecionada -->
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Peça</label>
-                    <input type="text" id="venda-peca-nome" readonly class="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700">
-                </div>
-
-                <!-- Quantidade -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade</label>
-                        <input type="number" id="venda-quantidade" value="1" oninput="calcularTotalVenda()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" min="1">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço Unitário (R$)</label>
-                        <input type="number" id="venda-preco-unitario" oninput="calcularTotalVenda()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700">
-                    </div>
-                </div>
-
-                <!-- Desconto -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Desconto (R$)</label>
-                        <input type="number" id="venda-desconto" value="0" oninput="calcularTotalVenda()" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700" min="0">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
-                        <select id="venda-pagamento" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-indigo-600 transition-all font-bold text-slate-700">
-                            <option value="Pix">Pix</option>
-                            <option value="Cartão de Crédito">Cartão de Crédito</option>
-                            <option value="Cartão de Débito">Cartão de Débito</option>
-                            <option value="Dinheiro">Dinheiro</option>
-                            <option value="A Prazo">A Prazo</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Resumo -->
-                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-600 font-bold">Subtotal:</span>
-                        <span id="venda-subtotal" class="font-black text-indigo-600">R$ 0,00</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-600 font-bold">Desconto:</span>
-                        <span id="venda-desconto-exibir" class="font-black text-red-600">- R$ 0,00</span>
-                    </div>
-                    <div class="border-t border-indigo-200 pt-2 flex justify-between">
-                        <span class="text-slate-800 font-black">Total:</span>
-                        <span id="venda-total" class="text-2xl font-black text-indigo-700">R$ 0,00</span>
-                    </div>
-                </div>
-
-                <!-- Botões -->
-                <div class="flex gap-3">
-                    <button onclick="fecharModalVenda()" class="flex-1 py-4 bg-slate-200 text-slate-700 font-black rounded-2xl hover:bg-slate-300 transition-all">CANCELAR</button>
-                    <button onclick="confirmarVenda()" class="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition-all">CONFIRMAR VENDA</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- MODAL PDF (PREVIEW) -->
-    <!-- ============================================================ -->
-    <div id="modal-pdf" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
-        <div class="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-8 space-y-6">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-4 no-print">
-                <h2 class="text-2xl font-black text-slate-800">Visualização do Orçamento</h2>
-                <div class="flex gap-2">
-                    <button onclick="imprimirPDF()" class="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2">
-                        <i data-lucide="printer" class="w-5 h-5"></i> IMPRIMIR
-                    </button>
-                    <button onclick="fecharModalPDF()" class="p-3 text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-6 h-6"></i></button>
-                </div>
-            </div>
-            
-            <!-- Conteúdo do PDF -->
-            <div id="pdf-content" class="print-area bg-white p-8 border border-slate-100 rounded-xl shadow-inner">
-                <div class="flex justify-between items-start mb-12">
-                    <div>
-                        <h1 id="pdf-header-nome" class="text-3xl font-black text-slate-800 uppercase tracking-tighter">ATELIÊ VIVA ARTE</h1>
-                        <p id="pdf-header-contato" class="text-xs text-slate-500 font-bold mt-1"></p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Orçamento Nº</p>
-                        <p id="pdf-numero" class="text-xl font-black text-slate-800">#000000</p>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mt-2">Data</p>
-                        <p id="pdf-data" class="text-sm font-bold text-slate-800">00/00/0000</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-12 mb-12 pb-8 border-b-2 border-slate-100">
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Cliente</p>
-                        <p id="pdf-cliente-nome" class="text-lg font-black text-slate-800">Nome do Cliente</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Contato</p>
-                        <p id="pdf-cliente-fone" class="text-lg font-black text-slate-800">(00) 00000-0000</p>
-                    </div>
-                </div>
-
-                <table class="w-full mb-12">
-                    <thead>
-                        <tr class="text-left border-b-2 border-slate-800">
-                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Qtd</th>
-                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Descrição do Serviço</th>
-                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Complexidade</th>
-                            <th class="py-4 text-right text-[10px] font-black text-slate-400 uppercase">Valor Unit.</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pdf-tabela-corpo">
-                        <!-- Itens via JS -->
-                    </tbody>
-                </table>
-
-                <div class="flex justify-end">
-                    <div class="w-64 space-y-3">
-                        <div class="flex justify-between text-sm font-bold text-slate-500">
-                            <span>Subtotal:</span>
-                            <span id="pdf-subtotal">R$ 0,00</span>
-                        </div>
-                        <div class="flex justify-between text-sm font-bold text-emerald-600">
-                            <span>Desconto:</span>
-                            <span id="pdf-desconto">- R$ 0,00</span>
-                        </div>
-                        <div class="flex justify-between items-end pt-4 border-t-2 border-slate-800">
-                            <span class="text-lg font-black text-slate-800 uppercase">TOTAL:</span>
-                            <span id="pdf-total" class="text-3xl font-black text-slate-800">R$ 0,00</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- OBSERVAÇÕES NO PDF -->
-                <div id="pdf-obs-bloco" class="hidden mt-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <p class="text-[10px] font-black text-slate-500 uppercase mb-2">Observações:</p>
-                    <p id="pdf-obs-texto" class="text-sm text-slate-700 font-bold"></p>
-                </div>
-
-                <div class="mt-12 pt-8 border-t border-slate-100">
-                    <p class="text-[10px] font-black text-slate-800 uppercase mb-4">Observações Importantes:</p>
-                    <ul class="text-[9px] text-slate-500 font-bold space-y-1 list-disc ml-4">
-                        <li>Validade deste orçamento: 07 dias corridos.</li>
-                        <li>Prazo de entrega estimado após aprovação: 03 a 05 dias úteis.</li>
-                        <li>Peças não retiradas em 90 dias serão doadas conforme lei vigente.</li>
-                    </ul>
-                    <p class="text-[8px] text-slate-300 mt-8 text-center italic">Este documento é um orçamento prévio e não substitui a nota fiscal de serviço.</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script src="utils/index.js"></script>
     <script src="script.js"></script>

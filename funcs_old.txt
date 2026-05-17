@@ -12,8 +12,6 @@ calcularPrecoUnitarioMaterial
 limparPrecoTotal
 function
 function
-abrirModalRegistrarCompra
-fecharModalCompra
 function
 function
 renderizarCatalogo

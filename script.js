@@ -58,6 +58,7 @@ const idsCalculadoraCorte = [
     'corte-quantidade',
 ];
 
+let modoCorteAtual = 'tenho';
 let ultimoResumoCorte = '';
 
 function numeroCorte(valor) {
@@ -115,9 +116,46 @@ function aplicarPresetLarguraCorte(largura) {
     if (campo) campo.value = largura;
 }
 
+function estilizarBotaoModoCorte(id, ativo) {
+    const botao = document.getElementById(id);
+    if (!botao) return;
+    botao.classList.toggle('bg-white', ativo);
+    botao.classList.toggle('text-indigo-700', ativo);
+    botao.classList.toggle('shadow-sm', ativo);
+    botao.classList.toggle('text-slate-500', !ativo);
+}
+
+function setModoCorte(modo) {
+    modoCorteAtual = modo === 'compra' ? 'compra' : 'tenho';
+    const modoCompra = modoCorteAtual === 'compra';
+
+    estilizarBotaoModoCorte('corte-modo-tenho', !modoCompra);
+    estilizarBotaoModoCorte('corte-modo-compra', modoCompra);
+
+    definirTextoCorte('corte-texto-tecido', modoCompra
+        ? 'Informe a largura do tecido; o comprimento disponível é opcional para conferência.'
+        : 'Informe o tecido disponível para descobrir quantas peças cabem.');
+    definirTextoCorte('corte-label-comprimento', modoCompra ? 'Comprimento disponível (opcional)' : 'Comprimento disponível (cm)');
+    definirTextoCorte('corte-label-preco', modoCompra ? 'Preço por metro linear (opcional)' : 'Preço pago (opcional)');
+    definirTextoCorte('corte-label-quantidade', modoCompra ? 'Quantidade desejada (obrigatório)' : 'Quantidade desejada (opcional)');
+    definirTextoCorte('corte-total-label', modoCompra ? 'Comprimento necessário' : 'Peças que cabem');
+    definirTextoCorte('corte-label-na-largura', modoCompra ? 'Peças por faixa/largura' : 'Peças por faixa/largura');
+    definirTextoCorte('corte-label-no-comprimento', modoCompra ? 'Fileiras necessárias' : 'Peças no comprimento');
+    definirTextoCorte('corte-label-comprimento-usado', modoCompra ? 'Comprimento necessário' : 'Comprimento usado');
+    definirTextoCorte('corte-label-comprimento-restante', modoCompra ? 'Comprimento disponível' : 'Comprimento restante');
+    definirTextoCorte('corte-label-sobra', modoCompra ? 'Diferença do disponível' : 'Sobra aproximada em comprimento');
+
+    const quantidade = document.getElementById('corte-campo-quantidade');
+    quantidade?.classList.toggle('ring-4', modoCompra);
+    quantidade?.classList.toggle('ring-indigo-50', modoCompra);
+    quantidade?.classList.toggle('rounded-2xl', modoCompra);
+
+    limparResultadoCorte();
+}
+
 function calcularOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, nome) {
     const pecasNaLargura = larguraFinal > 0 ? Math.floor(larguraTecido / larguraFinal) : 0;
-    const pecasNoComprimento = comprimentoFinal > 0 ? Math.floor(comprimentoTecido / comprimentoFinal) : 0;
+    const pecasNoComprimento = comprimentoTecido > 0 && comprimentoFinal > 0 ? Math.floor(comprimentoTecido / comprimentoFinal) : 0;
     return {
         nome,
         larguraFinal,
@@ -129,24 +167,48 @@ function calcularOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal,
     };
 }
 
-function selecionarMelhorOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, permitirGirar) {
+function pontuarOrientacaoCorte(orientacao, usarComprimento) {
+    if (usarComprimento) return orientacao.total;
+    return orientacao.pecasNaLargura * 100000 - orientacao.comprimentoFinal;
+}
+
+function selecionarMelhorOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, permitirGirar, usarComprimento = true) {
     const normal = calcularOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, 'Sem girar');
     if (!permitirGirar) return normal;
 
     const girada = calcularOrientacaoCorte(larguraTecido, comprimentoTecido, comprimentoFinal, larguraFinal, 'Peça girada');
-    return girada.total > normal.total ? girada : normal;
+    return pontuarOrientacaoCorte(girada, usarComprimento) > pontuarOrientacaoCorte(normal, usarComprimento) ? girada : normal;
+}
+
+function comprimentoNecessarioOrientacaoCorte(orientacao, quantidade) {
+    if (orientacao.pecasNaLargura <= 0) return Infinity;
+    return Math.ceil(quantidade / orientacao.pecasNaLargura) * orientacao.comprimentoFinal;
+}
+
+function selecionarMelhorOrientacaoCompraCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, permitirGirar, quantidade) {
+    const normal = calcularOrientacaoCorte(larguraTecido, comprimentoTecido, larguraFinal, comprimentoFinal, 'Sem girar');
+    if (!permitirGirar) return normal;
+
+    const girada = calcularOrientacaoCorte(larguraTecido, comprimentoTecido, comprimentoFinal, larguraFinal, 'Peça girada');
+    const comprimentoNormal = comprimentoNecessarioOrientacaoCorte(normal, quantidade);
+    const comprimentoGirada = comprimentoNecessarioOrientacaoCorte(girada, quantidade);
+    if (comprimentoGirada < comprimentoNormal) return girada;
+    if (comprimentoGirada === comprimentoNormal && girada.pecasNaLargura > normal.pecasNaLargura) return girada;
+    return normal;
 }
 
 function validarCalculadoraCorte(dados) {
     if (dados.larguraTecido <= 0) return 'Informe uma largura do tecido maior que zero.';
-    if (dados.comprimentoTecido <= 0) return 'Informe um comprimento disponível/comprado maior que zero.';
+    if (dados.modo === 'tenho' && dados.comprimentoTecido <= 0) return 'Informe um comprimento disponível maior que zero.';
     if (dados.larguraPeca <= 0) return 'Informe uma largura da peça maior que zero.';
     if (dados.comprimentoPeca <= 0) return 'Informe um comprimento da peça maior que zero.';
+    if (dados.modo === 'compra' && dados.quantidade <= 0) return 'Informe a quantidade desejada para calcular a compra.';
     return '';
 }
 
-function calcularCorte() {
-    const dados = {
+function obterDadosCorte() {
+    return {
+        modo: modoCorteAtual,
         larguraTecido: obterValorCorte('corte-tecido-largura'),
         comprimentoTecido: obterValorCorte('corte-tecido-comprimento'),
         precoPago: obterValorCorte('corte-preco'),
@@ -157,7 +219,113 @@ function calcularCorte() {
         quantidade: Math.floor(obterValorCorte('corte-quantidade')),
         permitirGirar: document.getElementById('corte-girar')?.value === 'sim',
     };
+}
 
+function aplicarResultadoBaseCorte(melhor) {
+    definirTextoCorte('corte-orientacao', `${melhor.nome}: peça final ${formatarCmCorte(melhor.larguraFinal)} × ${formatarCmCorte(melhor.comprimentoFinal)}.`);
+    definirTextoCorte('corte-na-largura', String(melhor.pecasNaLargura));
+}
+
+function calcularCorteTenhoTecido(dados, melhor) {
+    const comprimentoRestante = Math.max(dados.comprimentoTecido - melhor.comprimentoUsado, 0);
+    const areaTotalM2 = (dados.larguraTecido * dados.comprimentoTecido) / 10000;
+    const areaUsadaM2 = (melhor.total * melhor.larguraFinal * melhor.comprimentoFinal) / 10000;
+    const comprimentoTecidoM = dados.comprimentoTecido / 100;
+    const precoMetroLinear = dados.precoPago > 0 && comprimentoTecidoM > 0 ? dados.precoPago / comprimentoTecidoM : 0;
+    const custoEstimadoPorPeca = precoMetroLinear > 0 && melhor.total > 0 ? dados.precoPago / melhor.total : 0;
+
+    definirTextoCorte('corte-total', String(melhor.total));
+    aplicarResultadoBaseCorte(melhor);
+    definirTextoCorte('corte-no-comprimento', String(melhor.pecasNoComprimento));
+    definirTextoCorte('corte-comprimento-usado', formatarCmCorte(melhor.comprimentoUsado));
+    definirTextoCorte('corte-comprimento-restante', formatarCmCorte(comprimentoRestante));
+    definirTextoCorte('corte-sobra', formatarCmCorte(comprimentoRestante));
+    definirTextoCorte('corte-area-total', formatarAreaCorte(areaTotalM2));
+    definirTextoCorte('corte-area-usada', formatarAreaCorte(areaUsadaM2));
+    definirTextoCorte('corte-custo-metro', precoMetroLinear > 0 ? moedaCorte(precoMetroLinear) : '—');
+    definirTextoCorte('corte-custo-peca', custoEstimadoPorPeca > 0 ? moedaCorte(custoEstimadoPorPeca) : '—');
+    document.getElementById('corte-quantidade-resultado')?.classList.add('hidden');
+
+    if (melhor.total === 0) mostrarAlertaCorte('Essa peça não cabe nas medidas informadas.', 'aviso');
+    else ocultarAlertaCorte();
+
+    ultimoResumoCorte = [
+        'Calculadora de Corte - Tenho tecido',
+        `Tecido: largura ${formatarCmCorte(dados.larguraTecido)} × comprimento disponível ${formatarCmCorte(dados.comprimentoTecido)}`,
+        `Peça final: ${formatarCmCorte(melhor.larguraFinal)} × ${formatarCmCorte(melhor.comprimentoFinal)}`,
+        `Orientação escolhida: ${melhor.nome}`,
+        `Quantidade que cabe: ${melhor.total} peça(s)`,
+        `Peças por faixa/largura: ${melhor.pecasNaLargura}`,
+        `Peças no comprimento: ${melhor.pecasNoComprimento}`,
+        `Comprimento usado: ${formatarCmCorte(melhor.comprimentoUsado)}`,
+        `Comprimento restante: ${formatarCmCorte(comprimentoRestante)}`,
+        precoMetroLinear > 0 ? `Custo por metro linear: ${moedaCorte(precoMetroLinear)}` : '',
+        custoEstimadoPorPeca > 0 ? `Custo por peça: ${moedaCorte(custoEstimadoPorPeca)}` : '',
+        `Área estimada apenas para referência: total ${formatarAreaCorte(areaTotalM2)} | usada ${formatarAreaCorte(areaUsadaM2)}`,
+    ].filter(Boolean).join('\n');
+
+    return { dados, melhor, precoMetroLinear, custoEstimadoPorPeca };
+}
+
+function calcularCorteCompra(dados, melhor) {
+    const pecasPorFaixa = melhor.pecasNaLargura;
+    const fileirasNecessarias = pecasPorFaixa > 0 ? Math.ceil(dados.quantidade / pecasPorFaixa) : 0;
+    const comprimentoNecessarioCm = fileirasNecessarias * melhor.comprimentoFinal;
+    const comprimentoNecessarioM = comprimentoNecessarioCm / 100;
+    const comprimentoRestante = dados.comprimentoTecido > 0 ? dados.comprimentoTecido - comprimentoNecessarioCm : 0;
+    const areaTotalM2 = dados.comprimentoTecido > 0 ? (dados.larguraTecido * dados.comprimentoTecido) / 10000 : 0;
+    const areaNecessariaM2 = (dados.larguraTecido * comprimentoNecessarioCm) / 10000;
+    const custoQuantidade = dados.precoPago > 0 ? dados.precoPago * comprimentoNecessarioM : 0;
+
+    definirTextoCorte('corte-total', `${formatarCmCorte(comprimentoNecessarioCm)} / ${formatarMetroCorte(comprimentoNecessarioM)}`);
+    aplicarResultadoBaseCorte(melhor);
+    definirTextoCorte('corte-no-comprimento', String(fileirasNecessarias));
+    definirTextoCorte('corte-comprimento-usado', `${formatarCmCorte(comprimentoNecessarioCm)} / ${formatarMetroCorte(comprimentoNecessarioM)}`);
+    definirTextoCorte('corte-comprimento-restante', dados.comprimentoTecido > 0 ? formatarCmCorte(dados.comprimentoTecido) : 'Não informado');
+    definirTextoCorte('corte-sobra', dados.comprimentoTecido > 0 ? formatarCmCorte(comprimentoRestante) : '—');
+    definirTextoCorte('corte-area-total', dados.comprimentoTecido > 0 ? formatarAreaCorte(areaTotalM2) : '—');
+    definirTextoCorte('corte-area-usada', formatarAreaCorte(areaNecessariaM2));
+    definirTextoCorte('corte-custo-metro', dados.precoPago > 0 ? moedaCorte(dados.precoPago) : '—');
+    definirTextoCorte('corte-custo-peca', custoQuantidade > 0 ? moedaCorte(custoQuantidade / dados.quantidade) : '—');
+
+    const textoQuantidade = pecasPorFaixa > 0
+        ? `Para produzir ${dados.quantidade} peças, você precisa de aproximadamente ${formatarCmCorte(comprimentoNecessarioCm)} / ${formatarMetroCorte(comprimentoNecessarioM)} de tecido.`
+        : 'Essa peça não cabe na largura do tecido informada.';
+    const resultadoQuantidade = document.getElementById('corte-quantidade-resultado');
+    if (resultadoQuantidade) {
+        resultadoQuantidade.innerText = pecasPorFaixa > 0
+            ? `${textoQuantidade} Cabem ${pecasPorFaixa} peça(s) por faixa/largura, em ${fileirasNecessarias} fileira(s).${custoQuantidade > 0 ? ` Custo estimado: ${moedaCorte(custoQuantidade)}.` : ''}`
+            : textoQuantidade;
+        resultadoQuantidade.classList.remove('hidden');
+    }
+
+    if (pecasPorFaixa === 0) mostrarAlertaCorte('Essa peça não cabe nas medidas informadas.', 'aviso');
+    else if (dados.comprimentoTecido > 0 && dados.comprimentoTecido < comprimentoNecessarioCm) {
+        mostrarAlertaCorte(`Falta tecido: precisa de ${formatarCmCorte(comprimentoNecessarioCm)}, mas há ${formatarCmCorte(dados.comprimentoTecido)} disponíveis.`, 'aviso');
+    } else {
+        ocultarAlertaCorte();
+    }
+
+    ultimoResumoCorte = [
+        'Calculadora de Corte - Quero calcular compra',
+        `Quantidade desejada: ${dados.quantidade} peça(s)`,
+        `Largura do tecido: ${formatarCmCorte(dados.larguraTecido)}`,
+        dados.comprimentoTecido > 0 ? `Comprimento disponível informado: ${formatarCmCorte(dados.comprimentoTecido)}` : 'Comprimento disponível: não informado (não obrigatório neste modo)',
+        `Peça final: ${formatarCmCorte(melhor.larguraFinal)} × ${formatarCmCorte(melhor.comprimentoFinal)}`,
+        `Orientação escolhida: ${melhor.nome}`,
+        `Peças por faixa/largura: ${pecasPorFaixa}`,
+        `Fileiras necessárias: ${fileirasNecessarias}`,
+        `Comprimento necessário: ${formatarCmCorte(comprimentoNecessarioCm)} / ${formatarMetroCorte(comprimentoNecessarioM)}`,
+        textoQuantidade,
+        custoQuantidade > 0 ? `Custo estimado da compra: ${moedaCorte(custoQuantidade)} | Custo por peça: ${moedaCorte(custoQuantidade / dados.quantidade)}` : '',
+        `Área estimada apenas para referência: necessária ${formatarAreaCorte(areaNecessariaM2)}`,
+    ].filter(Boolean).join('\n');
+
+    return { dados, melhor, pecasPorFaixa, fileirasNecessarias, comprimentoNecessarioCm, comprimentoNecessarioM, custoQuantidade };
+}
+
+function calcularCorte() {
+    const dados = obterDadosCorte();
     const erro = validarCalculadoraCorte(dados);
     if (erro) {
         mostrarAlertaCorte(erro);
@@ -166,76 +334,43 @@ function calcularCorte() {
 
     const larguraFinal = dados.larguraPeca + dados.margem + dados.espacamento;
     const comprimentoFinal = dados.comprimentoPeca + dados.margem + dados.espacamento;
-    const melhor = selecionarMelhorOrientacaoCorte(
-        dados.larguraTecido,
-        dados.comprimentoTecido,
-        larguraFinal,
-        comprimentoFinal,
-        dados.permitirGirar
-    );
+    const melhor = dados.modo === 'compra'
+        ? selecionarMelhorOrientacaoCompraCorte(
+            dados.larguraTecido,
+            dados.comprimentoTecido,
+            larguraFinal,
+            comprimentoFinal,
+            dados.permitirGirar,
+            dados.quantidade
+        )
+        : selecionarMelhorOrientacaoCorte(
+            dados.larguraTecido,
+            dados.comprimentoTecido,
+            larguraFinal,
+            comprimentoFinal,
+            dados.permitirGirar,
+            true
+        );
 
-    const comprimentoRestante = Math.max(dados.comprimentoTecido - melhor.comprimentoUsado, 0);
-    const areaTotalM2 = (dados.larguraTecido * dados.comprimentoTecido) / 10000;
-    const areaUsadaM2 = (melhor.total * melhor.larguraFinal * melhor.comprimentoFinal) / 10000;
-    const sobraM2 = Math.max(areaTotalM2 - areaUsadaM2, 0);
-    const comprimentoTecidoM = dados.comprimentoTecido / 100;
-    const precoMetroLinear = dados.precoPago > 0 && comprimentoTecidoM > 0 ? dados.precoPago / comprimentoTecidoM : 0;
-    const custoEstimadoPorPeca = precoMetroLinear > 0 ? precoMetroLinear * (melhor.comprimentoFinal / 100) : 0;
+    if (dados.modo === 'compra') return calcularCorteCompra(dados, melhor);
+    return calcularCorteTenhoTecido(dados, melhor);
+}
 
-    definirTextoCorte('corte-total', String(melhor.total));
-    definirTextoCorte('corte-orientacao', `${melhor.nome}: peça final ${formatarCmCorte(melhor.larguraFinal)} × ${formatarCmCorte(melhor.comprimentoFinal)}.`);
-    definirTextoCorte('corte-na-largura', String(melhor.pecasNaLargura));
-    definirTextoCorte('corte-no-comprimento', String(melhor.pecasNoComprimento));
-    definirTextoCorte('corte-comprimento-usado', formatarCmCorte(melhor.comprimentoUsado));
-    definirTextoCorte('corte-comprimento-restante', formatarCmCorte(comprimentoRestante));
-    definirTextoCorte('corte-sobra', formatarAreaCorte(sobraM2));
-    definirTextoCorte('corte-area-total', formatarAreaCorte(areaTotalM2));
-    definirTextoCorte('corte-area-usada', formatarAreaCorte(areaUsadaM2));
-    definirTextoCorte('corte-custo-metro', precoMetroLinear > 0 ? moedaCorte(precoMetroLinear) : '—');
-    definirTextoCorte('corte-custo-peca', custoEstimadoPorPeca > 0 ? moedaCorte(custoEstimadoPorPeca) : '—');
-
-    const resultadoQuantidade = document.getElementById('corte-quantidade-resultado');
-    let textoQuantidade = '';
-    if (dados.quantidade > 0 && resultadoQuantidade) {
-        const pecasPorFaixa = melhor.pecasNaLargura;
-        if (pecasPorFaixa > 0) {
-            const fileirasNecessarias = Math.ceil(dados.quantidade / pecasPorFaixa);
-            const comprimentoNecessarioCm = fileirasNecessarias * melhor.comprimentoFinal;
-            const comprimentoNecessarioM = comprimentoNecessarioCm / 100;
-            const custoQuantidade = precoMetroLinear > 0 ? precoMetroLinear * comprimentoNecessarioM : 0;
-            const faltaTecido = comprimentoNecessarioCm > dados.comprimentoTecido;
-            textoQuantidade = `Quantidade desejada: ${dados.quantidade} peça(s). Cabem ${pecasPorFaixa} por faixa/largura, exigindo ${fileirasNecessarias} fileira(s), ${formatarCmCorte(comprimentoNecessarioCm)} (${formatarMetroCorte(comprimentoNecessarioM)}) de tecido${custoQuantidade > 0 ? ` e custo estimado de ${moedaCorte(custoQuantidade)}` : ''}.`;
-            resultadoQuantidade.innerText = textoQuantidade;
-            resultadoQuantidade.classList.remove('hidden');
-            if (faltaTecido) mostrarAlertaCorte(`Falta tecido: a quantidade desejada precisa de ${formatarCmCorte(comprimentoNecessarioCm)}, mas há ${formatarCmCorte(dados.comprimentoTecido)} disponíveis.`, 'aviso');
-            else if (melhor.total === 0) mostrarAlertaCorte('Nenhuma peça cabe no tecido informado. Ajuste as medidas ou permita girar a peça.', 'aviso');
-            else mostrarAlertaCorte('Cálculo realizado. A quantidade desejada cabe no tecido informado.', 'sucesso');
-        } else {
-            textoQuantidade = 'Quantidade desejada informada, mas nenhuma peça cabe por faixa/largura.';
-            resultadoQuantidade.innerText = textoQuantidade;
-            resultadoQuantidade.classList.remove('hidden');
-            mostrarAlertaCorte('Nenhuma peça cabe no tecido informado. Ajuste as medidas ou permita girar a peça.', 'aviso');
-        }
-    } else {
-        resultadoQuantidade?.classList.add('hidden');
-        if (melhor.total === 0) mostrarAlertaCorte('Nenhuma peça cabe no tecido informado. Ajuste as medidas ou permita girar a peça.', 'aviso');
-        else ocultarAlertaCorte();
-    }
-
-    ultimoResumoCorte = [
-        'Calculadora de Corte',
-        `Tecido: ${formatarCmCorte(dados.larguraTecido)} de largura × ${formatarCmCorte(dados.comprimentoTecido)} de comprimento`,
-        `Peça final: ${formatarCmCorte(melhor.larguraFinal)} × ${formatarCmCorte(melhor.comprimentoFinal)}`,
-        `Orientação: ${melhor.nome}`,
-        `Cabem: ${melhor.total} peça(s) (${melhor.pecasNaLargura} na largura × ${melhor.pecasNoComprimento} no comprimento)`,
-        `Comprimento usado: ${formatarCmCorte(melhor.comprimentoUsado)}`,
-        `Comprimento restante: ${formatarCmCorte(comprimentoRestante)}`,
-        `Área total: ${formatarAreaCorte(areaTotalM2)} | Área usada: ${formatarAreaCorte(areaUsadaM2)}`,
-        precoMetroLinear > 0 ? `Custo por metro linear: ${moedaCorte(precoMetroLinear)} | Custo estimado por peça: ${moedaCorte(custoEstimadoPorPeca)}` : '',
-        textoQuantidade,
-    ].filter(Boolean).join('\n');
-
-    return { dados, melhor, precoMetroLinear, custoEstimadoPorPeca };
+function limparResultadoCorte() {
+    ocultarAlertaCorte();
+    definirTextoCorte('corte-total', modoCorteAtual === 'compra' ? '0 cm / 0 m' : '0');
+    definirTextoCorte('corte-orientacao', 'Preencha os dados e clique em calcular.');
+    definirTextoCorte('corte-na-largura', '0');
+    definirTextoCorte('corte-no-comprimento', '0');
+    definirTextoCorte('corte-comprimento-usado', '0 cm');
+    definirTextoCorte('corte-comprimento-restante', modoCorteAtual === 'compra' ? 'Não informado' : '0 cm');
+    definirTextoCorte('corte-sobra', modoCorteAtual === 'compra' ? '—' : '0 cm');
+    definirTextoCorte('corte-area-total', '0 m²');
+    definirTextoCorte('corte-area-usada', '0 m²');
+    definirTextoCorte('corte-custo-metro', '—');
+    definirTextoCorte('corte-custo-peca', '—');
+    document.getElementById('corte-quantidade-resultado')?.classList.add('hidden');
+    ultimoResumoCorte = '';
 }
 
 function limparCalculadoraCorte() {
@@ -245,20 +380,7 @@ function limparCalculadoraCorte() {
     });
     const girar = document.getElementById('corte-girar');
     if (girar) girar.value = 'nao';
-    ocultarAlertaCorte();
-    definirTextoCorte('corte-total', '0');
-    definirTextoCorte('corte-orientacao', 'Preencha os dados e clique em calcular.');
-    definirTextoCorte('corte-na-largura', '0');
-    definirTextoCorte('corte-no-comprimento', '0');
-    definirTextoCorte('corte-comprimento-usado', '0 cm');
-    definirTextoCorte('corte-comprimento-restante', '0 cm');
-    definirTextoCorte('corte-sobra', '0 m²');
-    definirTextoCorte('corte-area-total', '0 m²');
-    definirTextoCorte('corte-area-usada', '0 m²');
-    definirTextoCorte('corte-custo-metro', '—');
-    definirTextoCorte('corte-custo-peca', '—');
-    document.getElementById('corte-quantidade-resultado')?.classList.add('hidden');
-    ultimoResumoCorte = '';
+    setModoCorte(modoCorteAtual);
 }
 
 async function copiarResumoCorte() {
