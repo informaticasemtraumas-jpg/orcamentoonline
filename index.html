@@ -108,12 +108,23 @@
 
                 <div id="corte-alerta" class="hidden mb-6 p-4 rounded-2xl border text-sm font-bold"></div>
 
+                <div class="bg-indigo-50 p-2 rounded-3xl border border-indigo-100 mb-6 grid grid-cols-1 md:grid-cols-2 gap-2" role="group" aria-label="Modo de cálculo da Calculadora de Corte">
+                    <button type="button" id="corte-modo-tenho" onclick="setModoCorte('tenho')" class="p-4 rounded-2xl bg-white text-indigo-700 shadow-sm text-left transition-all">
+                        <span class="block text-sm font-black">Tenho tecido</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Quero saber quantas peças cabem.</span>
+                    </button>
+                    <button type="button" id="corte-modo-compra" onclick="setModoCorte('compra')" class="p-4 rounded-2xl text-slate-500 text-left transition-all">
+                        <span class="block text-sm font-black">Quero calcular compra</span>
+                        <span class="block text-xs font-bold text-slate-500 mt-1">Quero fazer X peças e saber quanto tecido comprar.</span>
+                    </button>
+                </div>
+
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div class="xl:col-span-2 space-y-6">
                         <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-5">
                             <div>
                                 <h3 class="text-lg font-black text-slate-800">A) Dados do tecido</h3>
-                                <p class="text-xs text-slate-500 font-semibold">Informe o tecido disponível/comprado para o corte.</p>
+                                <p id="corte-texto-tecido" class="text-xs text-slate-500 font-semibold">Informe o tecido disponível para descobrir quantas peças cabem.</p>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="space-y-1">
@@ -121,11 +132,11 @@
                                     <input type="number" min="0" step="0.01" id="corte-tecido-largura" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 140">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento disponível (cm)</label>
+                                    <label id="corte-label-comprimento" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento disponível (cm)</label>
                                     <input type="number" min="0" step="0.01" id="corte-tecido-comprimento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 300">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço pago (opcional)</label>
+                                    <label id="corte-label-preco" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço pago (opcional)</label>
                                     <input type="number" min="0" step="0.01" id="corte-preco" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 75,00">
                                 </div>
                             </div>
@@ -158,8 +169,8 @@
                                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comprimento da peça (cm)</label>
                                     <input type="number" min="0" step="0.01" id="corte-peca-comprimento" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Ex: 45">
                                 </div>
-                                <div class="space-y-1">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade desejada</label>
+                                <div id="corte-campo-quantidade" class="space-y-1">
+                                    <label id="corte-label-quantidade" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantidade desejada</label>
                                     <input type="number" min="0" step="1" id="corte-quantidade" class="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700" placeholder="Opcional">
                                 </div>
                                 <div class="space-y-1">
@@ -192,18 +203,20 @@
                             <h3 class="text-xl font-black">Plano de corte</h3>
                         </div>
                         <div class="p-5 bg-white/10 rounded-3xl border border-white/10">
-                            <p class="text-xs font-bold text-indigo-100 uppercase">Peças que cabem</p>
+                            <p id="corte-total-label" class="text-xs font-bold text-indigo-100 uppercase">Peças que cabem</p>
                             <p id="corte-total" class="text-5xl font-black mt-2">0</p>
                             <p id="corte-orientacao" class="text-sm font-bold text-slate-300 mt-2">Preencha os dados e clique em calcular.</p>
                         </div>
                         <div id="corte-resultados" class="space-y-3 text-sm">
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Na largura</span><strong id="corte-na-largura">0</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">No comprimento</span><strong id="corte-no-comprimento">0</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Comprimento usado</span><strong id="corte-comprimento-usado">0 cm</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Comprimento restante</span><strong id="corte-comprimento-restante">0 cm</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Sobra aproximada</span><strong id="corte-sobra">0 m²</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Área total</span><strong id="corte-area-total">0 m²</strong></div>
-                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Área usada</span><strong id="corte-area-usada">0 m²</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-na-largura" class="text-slate-300">Peças por faixa/largura</span><strong id="corte-na-largura">0</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-no-comprimento" class="text-slate-300">Peças no comprimento</span><strong id="corte-no-comprimento">0</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-comprimento-usado" class="text-slate-300">Comprimento usado</span><strong id="corte-comprimento-usado">0 cm</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-comprimento-restante" class="text-slate-300">Comprimento restante</span><strong id="corte-comprimento-restante">0 cm</strong></div>
+                            <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span id="corte-label-sobra" class="text-slate-300">Sobra aproximada em comprimento</span><strong id="corte-sobra">0 cm</strong></div>
+                            <div class="pt-2 text-[11px] leading-relaxed text-slate-400">
+                                <p class="font-black text-slate-300">Área estimada apenas para referência</p>
+                                <p><span>Área total:</span> <strong id="corte-area-total">0 m²</strong> • <span>Área usada:</span> <strong id="corte-area-usada">0 m²</strong></p>
+                            </div>
                             <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Custo por metro linear</span><strong id="corte-custo-metro">—</strong></div>
                             <div class="flex justify-between gap-3 border-b border-white/10 pb-2"><span class="text-slate-300">Custo estimado por peça</span><strong id="corte-custo-peca">—</strong></div>
                         </div>
@@ -330,17 +343,17 @@
             <!-- Tabela de Catálogo -->
             <div class="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tempo Prod.</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Prontas para Venda</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço de Venda</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Tempo</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Prontas</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Preço</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="lista-catalogo">
+                        <tbody id="lista-catalogo" class="divide-y divide-slate-100">
                             <!-- Peças via JS -->
                         </tbody>
                     </table>
@@ -348,6 +361,10 @@
                 <div id="catalogo-vazio" class="hidden text-center py-12 text-slate-400 font-bold">
                     <i data-lucide="scissors" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
                     <p>Nenhuma peça no catálogo ainda</p>
+                </div>
+                <div id="catalogo-paginacao" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-100">
+                    <p id="catalogo-contador" class="text-xs font-bold text-slate-400">Mostrando 0 de 0 peças</p>
+                    <button type="button" id="catalogo-ver-mais" onclick="verMaisCatalogo()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-100 transition-all">Ver Mais</button>
                 </div>
             </div>
         </div>
