@@ -343,17 +343,17 @@
             <!-- Tabela de Catálogo -->
             <div class="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tempo Prod.</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Prontas para Venda</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Preço de Venda</th>
-                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Tempo</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Prontas</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Preço</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="lista-catalogo">
+                        <tbody id="lista-catalogo" class="divide-y divide-slate-100">
                             <!-- Peças via JS -->
                         </tbody>
                     </table>
@@ -361,6 +361,10 @@
                 <div id="catalogo-vazio" class="hidden text-center py-12 text-slate-400 font-bold">
                     <i data-lucide="scissors" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
                     <p>Nenhuma peça no catálogo ainda</p>
+                </div>
+                <div id="catalogo-paginacao" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-100">
+                    <p id="catalogo-contador" class="text-xs font-bold text-slate-400">Mostrando 0 de 0 peças</p>
+                    <button type="button" id="catalogo-ver-mais" onclick="verMaisCatalogo()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-100 transition-all">Ver Mais</button>
                 </div>
             </div>
         </div>
