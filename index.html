@@ -1241,6 +1241,97 @@
     </div>
 
     <!-- ============================================================ -->
+    <!-- MODAL PDF (PREVIEW) -->
+    <!-- ============================================================ -->
+    <div id="modal-pdf" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl p-8 space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 no-print">
+                <h2 class="text-2xl font-black text-slate-800">Visualização do Orçamento</h2>
+                <div class="flex gap-2">
+                    <button onclick="imprimirPDF()" class="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2">
+                        <i data-lucide="printer" class="w-5 h-5"></i> IMPRIMIR
+                    </button>
+                    <button onclick="fecharModalPDF()" class="p-3 text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-6 h-6"></i></button>
+                </div>
+            </div>
+            
+            <!-- Conteúdo do PDF -->
+            <div id="pdf-content" class="print-area bg-white p-8 border border-slate-100 rounded-xl shadow-inner">
+                <div class="flex justify-between items-start mb-12">
+                    <div>
+                        <h1 id="pdf-header-nome" class="text-3xl font-black text-slate-800 uppercase tracking-tighter">ATELIÊ VIVA ARTE</h1>
+                        <p id="pdf-header-contato" class="text-xs text-slate-500 font-bold mt-1"></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Orçamento Nº</p>
+                        <p id="pdf-numero" class="text-xl font-black text-slate-800">#000000</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mt-2">Data</p>
+                        <p id="pdf-data" class="text-sm font-bold text-slate-800">00/00/0000</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-12 mb-12 pb-8 border-b-2 border-slate-100">
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Cliente</p>
+                        <p id="pdf-cliente-nome" class="text-lg font-black text-slate-800">Nome do Cliente</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Contato</p>
+                        <p id="pdf-cliente-fone" class="text-lg font-black text-slate-800">(00) 00000-0000</p>
+                    </div>
+                </div>
+
+                <table class="w-full mb-12">
+                    <thead>
+                        <tr class="text-left border-b-2 border-slate-800">
+                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Qtd</th>
+                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Descrição do Serviço</th>
+                            <th class="py-4 text-[10px] font-black text-slate-400 uppercase">Complexidade</th>
+                            <th class="py-4 text-right text-[10px] font-black text-slate-400 uppercase">Valor Unit.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdf-tabela-corpo">
+                        <!-- Itens via JS -->
+                    </tbody>
+                </table>
+
+                <div class="flex justify-end">
+                    <div class="w-64 space-y-3">
+                        <div class="flex justify-between text-sm font-bold text-slate-500">
+                            <span>Subtotal:</span>
+                            <span id="pdf-subtotal">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold text-emerald-600">
+                            <span>Desconto:</span>
+                            <span id="pdf-desconto">- R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between items-end pt-4 border-t-2 border-slate-800">
+                            <span class="text-lg font-black text-slate-800 uppercase">TOTAL:</span>
+                            <span id="pdf-total" class="text-3xl font-black text-slate-800">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OBSERVAÇÕES NO PDF -->
+                <div id="pdf-obs-bloco" class="hidden mt-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <p class="text-[10px] font-black text-slate-500 uppercase mb-2">Observações:</p>
+                    <p id="pdf-obs-texto" class="text-sm text-slate-700 font-bold"></p>
+                </div>
+
+                <div class="mt-12 pt-8 border-t border-slate-100">
+                    <p class="text-[10px] font-black text-slate-800 uppercase mb-4">Observações Importantes:</p>
+                    <ul class="text-[9px] text-slate-500 font-bold space-y-1 list-disc ml-4">
+                        <li>Validade deste orçamento: 07 dias corridos.</li>
+                        <li>Prazo de entrega estimado após aprovação: 03 a 05 dias úteis.</li>
+                        <li>Peças não retiradas em 90 dias serão doadas conforme lei vigente.</li>
+                    </ul>
+                    <p class="text-[8px] text-slate-300 mt-8 text-center italic">Este documento é um orçamento prévio e não substitui a nota fiscal de serviço.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
     <!-- MODAL: RELATÓRIO FINANCEIRO MENSAL -->
     <!-- ============================================================ -->
     <div id="modal-relatorio" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
