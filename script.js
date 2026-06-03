@@ -15,6 +15,7 @@ let complexidadeAtual = 1.0;
 let complexidadeNome = "Padrão";
 let currentUser = null;
 let statusChart = null;
+let historicoOrcamentos = [];
 let materiais = [];
 let itensCompraCaixa = [];
 let precificacaoConfig = {
@@ -1156,46 +1157,76 @@ async function carregarHistorico() {
 }
 
 function renderizarHistorico(data) {
+    historicoOrcamentos = data || [];
+    filtrarHistorico();
+}
+
+function filtrarHistorico() {
+    const busca = (document.getElementById('filtro-historico-cliente')?.value || '').trim().toLowerCase();
+    const status = document.getElementById('filtro-historico-status')?.value || 'todos';
+
+    const filtrados = historicoOrcamentos.filter(orc => {
+        const cliente = (orc.cliente || 'Consumidor').toLowerCase();
+        const itens = Array.isArray(orc.itens)
+            ? orc.itens.map(item => item.nome || '').join(' ').toLowerCase()
+            : '';
+        const correspondeBusca = !busca || cliente.includes(busca) || itens.includes(busca);
+        const correspondeStatus = status === 'todos' || orc.status === status;
+        return correspondeBusca && correspondeStatus;
+    });
+
+    renderizarTabelaHistorico(filtrados);
+}
+
+function renderizarTabelaHistorico(data) {
     const container = document.getElementById('lista-historico');
+    const contador = document.getElementById('historico-contador');
     if (!container) return;
 
     if (!data || data.length === 0) {
-        container.innerHTML = `<div class="col-span-2 text-center py-12 text-slate-400 font-bold">Nenhum orçamento registrado ainda.</div>`;
+        container.innerHTML = `<tr><td colspan="5" class="px-4 py-12 text-center text-slate-400 font-bold">Nenhum orçamento encontrado.</td></tr>`;
+        if (contador) contador.innerText = '0 serviços encontrados';
         return;
     }
 
     container.innerHTML = data.map(orc => {
         const sc = getStatusClasses(orc.status);
+        const cliente = orc.cliente || 'Consumidor';
         return `
-        <div class="p-5 bg-white border border-slate-100 rounded-3xl shadow-sm space-y-4">
-            <div class="flex justify-between items-start">
-                <div>
-                    <p class="font-black text-slate-800 text-lg">${orc.cliente || 'Consumidor'}</p>
-                    <p class="text-[10px] text-slate-400 uppercase font-bold">${formatDate(orc.created_at)}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border flex items-center gap-1 ${sc.bg} ${sc.text} ${sc.border}">
-                        <span class="w-1.5 h-1.5 rounded-full ${sc.dot} inline-block"></span>
-                        ${orc.status}
-                    </span>
-                    <button onclick="excluirOrcamento(${orc.id})" class="p-2 text-slate-300 hover:text-red-500">
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-4 align-middle">
+                <p class="font-black text-slate-800">${cliente}</p>
+                <p class="text-[10px] text-slate-400 uppercase font-bold">Orçamento #${String(orc.id).padStart(4, '0')}</p>
+            </td>
+            <td class="px-4 py-4 align-middle text-xs font-bold text-slate-500">${formatDate(orc.created_at)}</td>
+            <td class="px-4 py-4 align-middle">
+                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border inline-flex items-center gap-1 ${sc.bg} ${sc.text} ${sc.border}">
+                    <span class="w-1.5 h-1.5 rounded-full ${sc.dot} inline-block"></span>
+                    ${orc.status}
+                </span>
+            </td>
+            <td class="px-4 py-4 align-middle text-right font-black text-indigo-600">${formatadorMoeda.format(orc.total)}</td>
+            <td class="px-4 py-4 align-middle">
+                <div class="flex items-center justify-end gap-2">
+                    <select onchange="atualizarStatus(${orc.id}, this.value)" class="min-w-[150px] text-[10px] font-bold bg-white border border-slate-200 rounded-xl p-2 outline-none cursor-pointer hover:border-indigo-400 focus:border-indigo-600 transition-all">
+                        <option value="Aguardando Aprovação" ${orc.status === 'Aguardando Aprovação' ? 'selected' : ''}>Aguardando Aprovação</option>
+                        <option value="Pendente" ${orc.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                        <option value="Em Produção" ${orc.status === 'Em Produção' ? 'selected' : ''}>Em Produção</option>
+                        <option value="Pronto" ${orc.status === 'Pronto' ? 'selected' : ''}>Pronto</option>
+                        <option value="Entregue" ${orc.status === 'Entregue' ? 'selected' : ''}>Entregue</option>
+                    </select>
+                    <button onclick="excluirOrcamento(${orc.id})" class="p-2 text-slate-300 hover:text-red-500 rounded-xl hover:bg-red-50 transition-all" title="Excluir orçamento">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>
-            </div>
-            <div class="flex justify-between items-center pt-2 border-t border-slate-50">
-                <div class="text-indigo-600 font-black text-xl">${formatadorMoeda.format(orc.total)}</div>
-                <select onchange="atualizarStatus(${orc.id}, this.value)" class="text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg p-1 outline-none cursor-pointer hover:border-indigo-400 transition-all">
-                    <option value="" disabled selected>Alterar Status</option>
-                    <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Em Produção">Em Produção</option>
-                    <option value="Pronto">Pronto</option>
-                    <option value="Entregue">Entregue</option>
-                </select>
-            </div>
-        </div>`;
+            </td>
+        </tr>`;
     }).join('');
+
+    if (contador) {
+        const total = data.length;
+        contador.innerText = `${total} ${total === 1 ? 'serviço encontrado' : 'serviços encontrados'}`;
+    }
     lucide.createIcons();
 }
 
