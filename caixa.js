@@ -1177,6 +1177,141 @@ function verMaisPedidosVendaCaixa() {
 
 function fecharDetalhesPedidoVendaCaixa() { document.getElementById('modal-caixa-pedido-detalhes')?.classList.add('hidden'); }
 
+function caixaIdentificadorPedidoPdf(pedido) {
+    const identificador = pedido?.numero || pedido?.codigo || pedido?.id || 'pedido';
+    return String(identificador).trim() || 'pedido';
+}
+
+function caixaNomeArquivoPedidoPdf(pedido) {
+    const identificador = caixaIdentificadorPedidoPdf(pedido)
+        .replace(/[^a-zA-Z0-9_-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    return `pedido-${identificador || 'documento'}.pdf`;
+}
+
+function caixaAdicionarCabecalhoPdf(doc, pedido, numeroPedido, nomeNegocio, contato) {
+    const largura = doc.internal.pageSize.getWidth();
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, largura, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(17);
+    doc.text(nomeNegocio, 14, 13);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    if (contato) doc.text(contato, 14, 20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`PEDIDO #${numeroPedido}`, largura - 14, 13, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(`Data da venda: ${formatDate(`${pedido.data_venda}T12:00:00`)}`, largura - 14, 20, { align: 'right' });
+    doc.setTextColor(30, 41, 59);
+}
+
+async function gerarPdfPedidoVendaCaixa(pedidoId) {
+    if (!pedidoId || !currentUser) return showToast('Selecione um pedido salvo para gerar o PDF.', 'error');
+    if (!window.jspdf?.jsPDF || typeof window.jspdf.jsPDF !== 'function') {
+        return showToast('Não foi possível carregar a biblioteca de PDF. Atualize a página e tente novamente.', 'error');
+    }
+
+    try {
+        const [{ data: pedido, error: pedidoError }, { data: itens, error: itensError }] = await Promise.all([
+            supabaseClient.from('pedidos_venda').select('*').eq('id', pedidoId).eq('user_id', currentUser.id).single(),
+            supabaseClient.from('pedidos_venda_itens').select('descricao, quantidade, valor_unitario, valor_total').eq('pedido_id', pedidoId).order('id', { ascending: true }),
+        ]);
+        if (pedidoError || !pedido || itensError) throw new Error('Não foi possível carregar os dados salvos do pedido.');
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const numeroPedido = caixaIdentificadorPedidoPdf(pedido);
+        const nomeNegocio = document.getElementById('atelie-nome')?.value.trim() || 'Seu negócio';
+        const contato = [document.getElementById('atelie-fone')?.value.trim(), document.getElementById('atelie-extra')?.value.trim()]
+            .filter(Boolean)
+            .join(' • ');
+        const moeda = valor => formatadorMoeda.format(caixaNumero(valor));
+        const subtotal = (itens || []).reduce((total, item) => total + caixaNumero(item.valor_total), 0);
+        const largura = doc.internal.pageSize.getWidth();
+        const altura = doc.internal.pageSize.getHeight();
+
+        doc.setProperties({ title: `Pedido ${numeroPedido}`, subject: 'Pedido de venda' });
+        caixaAdicionarCabecalhoPdf(doc, pedido, numeroPedido, nomeNegocio, contato);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cliente:', 14, 39);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(pedido.cliente || 'Cliente Sem Nome'), 31, 39);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Pagamento:', 14, 45);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(pedido.forma_pagamento || '-'), 38, 45);
+
+        doc.autoTable({
+            startY: 50,
+            head: [['Peça', 'Qtd.', 'Valor unitário', 'Subtotal']],
+            body: (itens || []).map(item => [
+                String(item.descricao || '-'),
+                caixaFormatarQuantidade(item.quantidade),
+                moeda(item.valor_unitario),
+                moeda(item.valor_total),
+            ]),
+            theme: 'grid',
+            margin: { left: 14, right: 14, top: 34, bottom: 25 },
+            headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+            styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.5, textColor: [51, 65, 85] },
+            columnStyles: { 0: { cellWidth: 82 }, 1: { halign: 'right', cellWidth: 20 }, 2: { halign: 'right', cellWidth: 35 }, 3: { halign: 'right', cellWidth: 35 } },
+            willDrawPage: () => caixaAdicionarCabecalhoPdf(doc, pedido, numeroPedido, nomeNegocio, contato),
+            didDrawPage: () => {
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.text('Agradecemos a preferência!', 14, altura - 12);
+                doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, largura - 14, altura - 12, { align: 'right' });
+                doc.setTextColor(30, 41, 59);
+            },
+        });
+
+        let y = doc.lastAutoTable.finalY + 9;
+        const garantirEspaco = espaco => {
+            if (y + espaco <= altura - 22) return;
+            doc.addPage();
+            caixaAdicionarCabecalhoPdf(doc, pedido, numeroPedido, nomeNegocio, contato);
+            y = 39;
+        };
+        garantirEspaco(34);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Subtotal geral: ${moeda(subtotal)}`, largura - 14, y, { align: 'right' });
+        y += 6;
+        doc.text(`Desconto aplicado: - ${moeda(pedido.desconto)}`, largura - 14, y, { align: 'right' });
+        y += 8;
+        doc.setFillColor(220, 252, 231);
+        doc.roundedRect(largura - 82, y - 5, 68, 10, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(`TOTAL: ${moeda(pedido.valor_total)}`, largura - 17, y + 1.5, { align: 'right' });
+        y += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`Valor pago: ${moeda(pedido.valor_pago)}`, largura - 14, y, { align: 'right' });
+
+        if (pedido.observacoes) {
+            y += 10;
+            garantirEspaco(24);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Observações', 14, y);
+            doc.setFont('helvetica', 'normal');
+            const linhas = doc.splitTextToSize(String(pedido.observacoes), largura - 28);
+            doc.text(linhas, 14, y + 5);
+        }
+
+        doc.save(caixaNomeArquivoPedidoPdf(pedido));
+    } catch (err) {
+        console.error('Erro ao gerar PDF do pedido de venda:', err);
+        showToast('Não foi possível gerar o PDF do pedido. Tente novamente.', 'error');
+    }
+}
+
 async function abrirDetalhesPedidoVendaCaixa(pedidoId) {
     const detalhes = document.getElementById('caixa-detalhes-pedido');
     if (!detalhes) return;
@@ -1209,9 +1344,14 @@ async function abrirDetalhesPedidoVendaCaixa(pedidoId) {
                 <h4 class="text-lg font-black text-slate-800">Detalhes do Pedido</h4>
                 <p class="text-xs text-slate-400 font-bold">${caixaEscapeHtml(pedido.cliente || 'Cliente Sem Nome')} • ${formatDate(pedido.data_venda + 'T12:00:00')}</p>
             </div>
-            <button onclick="fecharDetalhesPedidoVendaCaixa()" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-white transition-all">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="gerarPdfPedidoVendaCaixa('${pedido.id}')" class="px-3 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i data-lucide="file-down" class="w-4 h-4"></i> GERAR PDF
+                </button>
+                <button onclick="fecharDetalhesPedidoVendaCaixa()" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-white transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             <div class="p-3 bg-slate-50 rounded-2xl"><p class="text-[10px] font-black text-slate-400 uppercase">Pagamento</p><p class="font-black text-slate-700">${caixaEscapeHtml(pedido.forma_pagamento || '-')}</p></div>
