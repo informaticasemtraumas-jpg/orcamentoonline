@@ -894,15 +894,17 @@ async function carregarResumoOperacional() {
     container.innerHTML = '<div class="col-span-full p-6 text-center text-slate-400 font-bold">Carregando resumo...</div>';
 
     const { inicial, final } = relObterPeriodo();
-    const [pecasResp, materiaisResp, comprasResp, pedidosResp] = await Promise.all([
+    const [pecasResp, materiaisResp, comprasResp, pedidosResp, orcamentosResp, financeiroResp] = await Promise.all([
         supabaseClient.from('pecas').select('quantidade, preco_venda').eq('user_id', currentUser.id),
         supabaseClient.from('materiais').select('quantidade, preco_unitario').eq('user_id', currentUser.id),
         relQueryPeriodo('compras', 'data_compra', 'valor_total', inicial, final),
         relQueryPeriodo('pedidos_venda', 'data_venda', 'valor_total, valor_pago', inicial, final),
+        relQueryPeriodo('orcamentos', 'created_at', 'total, status, created_at', inicial, final, true),
+        relQueryPeriodo('financeiro', 'data_movimentacao', 'tipo, categoria, valor', inicial, final),
     ]);
 
-    if (pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error) {
-        console.error('Erro no resumo operacional:', pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error);
+    if (pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error || orcamentosResp.error || financeiroResp.error) {
+        console.error('Erro no resumo operacional:', pecasResp.error || materiaisResp.error || comprasResp.error || pedidosResp.error || orcamentosResp.error || financeiroResp.error);
         container.innerHTML = '<div class="col-span-full p-6 text-center text-red-400 font-bold">Erro ao carregar resumo geral.</div>';
         return;
     }
@@ -912,7 +914,16 @@ async function carregarResumoOperacional() {
     const totalMateriais = (materiaisResp.data || []).reduce((acc, material) => acc + relNumero(material.quantidade), 0);
     const valorMateriais = (materiaisResp.data || []).reduce((acc, material) => acc + (relNumero(material.quantidade) * relNumero(material.preco_unitario)), 0);
     const comprasPeriodo = (comprasResp.data || []).reduce((acc, compra) => acc + relNumero(compra.valor_total), 0);
-    const vendasPeriodo = (pedidosResp.data || []).reduce((acc, pedido) => acc + relNumero(pedido.valor_pago || pedido.valor_total), 0);
+    const vendasPedidos = (pedidosResp.data || []).reduce((acc, pedido) => acc + relNumero(pedido.valor_pago || pedido.valor_total), 0);
+    const orcamentosPeriodo = orcamentosResp.data || [];
+    const vendasOrcamentos = (financeiroResp.data || [])
+        .filter(movimentacao => movimentacao.tipo === 'ENTRADA' && movimentacao.categoria === 'Venda de Orçamento')
+        .reduce((acc, movimentacao) => acc + relNumero(movimentacao.valor), 0);
+    const orcamentosEmAberto = orcamentosPeriodo
+        .filter(orcamento => relStatusOrcamento(orcamento.status) !== 'Entregue')
+        .reduce((acc, orcamento) => acc + relNumero(orcamento.total), 0);
+    const valorOrcamentos = orcamentosPeriodo.reduce((acc, orcamento) => acc + relNumero(orcamento.total), 0);
+    const vendasPeriodo = vendasPedidos + vendasOrcamentos;
     const saldoPeriodo = vendasPeriodo - comprasPeriodo;
 
     const cards = [
@@ -921,6 +932,8 @@ async function carregarResumoOperacional() {
         { label: 'Total em materiais', valor: relQuantidade(totalMateriais), cor: 'text-slate-800' },
         { label: 'Valor estimado do estoque', valor: formatadorMoeda.format(valorMateriais), cor: 'text-indigo-600' },
         { label: 'Compras no período', valor: formatadorMoeda.format(comprasPeriodo), cor: 'text-red-500' },
+        { label: 'Orçamentos no período', valor: formatadorMoeda.format(valorOrcamentos), cor: 'text-indigo-600' },
+        { label: 'Orçamentos em aberto', valor: formatadorMoeda.format(orcamentosEmAberto), cor: 'text-amber-500' },
         { label: 'Vendas no período', valor: formatadorMoeda.format(vendasPeriodo), cor: 'text-emerald-600' },
         { label: 'Saldo do período', valor: formatadorMoeda.format(saldoPeriodo), cor: saldoPeriodo < 0 ? 'text-red-500' : 'text-emerald-600' },
     ];
@@ -933,14 +946,37 @@ async function carregarResumoOperacional() {
     `).join('');
 }
 
-function relQueryPeriodo(tabela, colunaData, colunas, inicial, final) {
+function relStatusOrcamento(status) {
+    return String(status || '').trim();
+}
+
+function relProximoDia(data) {
+    if (!data) return null;
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const proximo = new Date(Date.UTC(ano, mes - 1, dia + 1));
+    return proximo.toISOString().slice(0, 10);
+}
+
+function relHojeISO() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function relQueryPeriodo(tabela, colunaData, colunas, inicial, final, dataComHora = false) {
     let query = supabaseClient
         .from(tabela)
         .select(colunas)
         .eq('user_id', currentUser.id);
 
     if (inicial) query = query.gte(colunaData, inicial);
-    if (final) query = query.lte(colunaData, final);
+    // created_at é timestamp: usar o início do dia seguinte evita excluir
+    // orçamentos criados depois de 00:00 no último dia do filtro.
+    if (final) query = dataComHora
+        ? query.lt(colunaData, relProximoDia(final))
+        : query.lte(colunaData, final);
     return query;
 }
 
@@ -1240,10 +1276,46 @@ async function atualizarStatus(id, novoStatus) {
 
     if (fetchError) return showToast("Erro ao buscar orçamento.", "error");
 
-    // 2. Se o novo status for "Entregue", descontar peças do catálogo
-    if (novoStatus === 'Entregue' && orcamento.status !== 'Entregue') {
+    const statusAnterior = relStatusOrcamento(orcamento.status);
+    const statusNovo = relStatusOrcamento(novoStatus);
+
+    // A entrega precisa criar uma entrada financeira na data da entrega. Antes,
+    // o status era alterado sem lançamento no financeiro; por isso o orçamento
+    // nunca entrava na receita do mês quando havia sido criado em outro período.
+    if (statusNovo === 'Entregue' && statusAnterior !== 'Entregue') {
+        const { data: lancamentoExistente, error: consultaFinanceiroError } = await supabaseClient
+            .from('financeiro')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('categoria', 'Venda de Orçamento')
+            .eq('referencia_id', orcamento.id)
+            .maybeSingle();
+
+        if (consultaFinanceiroError) {
+            console.error('Erro ao verificar lançamento financeiro do orçamento:', consultaFinanceiroError);
+            return showToast('Não foi possível confirmar o lançamento financeiro da entrega.', 'error');
+        }
+
+        if (!lancamentoExistente) {
+            const { error: financeiroError } = await supabaseClient
+                .from('financeiro')
+                .insert([{
+                    user_id: currentUser.id,
+                    tipo: 'ENTRADA',
+                    categoria: 'Venda de Orçamento',
+                    descricao: `Orçamento entregue - ${orcamento.cliente || 'Consumidor'}`,
+                    valor: relNumero(orcamento.total),
+                    data_movimentacao: relHojeISO(),
+                    referencia_id: orcamento.id,
+                }]);
+
+            if (financeiroError) {
+                console.error('Erro ao registrar entrega no financeiro:', financeiroError);
+                return showToast('A entrega não foi salva: erro ao lançar a receita no financeiro.', 'error');
+            }
+        }
+
         await baixarEstoquePecasOrcamento(orcamento);
-        showToast("Orcamento entregue! Estoque atualizado.");
     }
 
     // 3. Atualizar o status no banco
@@ -1256,7 +1328,8 @@ async function atualizarStatus(id, novoStatus) {
         showToast("Erro ao atualizar status.", "error");
     } else {
         showToast(`Status atualizado para "${novoStatus}"!`);
-        carregarHistorico();
+        await carregarHistorico();
+        await carregarResumoOperacional();
         carregarCatalogo(); // Recarregar catálogo para ver as novas quantidades
     }
 }
@@ -1282,10 +1355,12 @@ function atualizarDashboard(orcamentos, financeiro = []) {
 
     const financeiroMes = financeiro.filter(f => estaNoPeriodo(f.data_movimentacao));
 
-    // 1. Ajustes/Orçamentos: orçamentos entregues no período selecionado.
-    const ajustesOrcamentos = orcamentos
-        .filter(o => o.status === 'Entregue' && estaNoPeriodo(o.created_at))
-        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+    const normalizarStatus = (status) => String(status || '').trim();
+    // A receita do orçamento vem do lançamento financeiro feito na entrega,
+    // e não da data de criação do orçamento.
+    const vendasOrcamentos = financeiroMes
+        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda de Orçamento')
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
 
     // 2. Vendas Diretas: entradas financeiras gravadas pela venda direta de catálogo.
     const vendasDiretas = financeiroMes
@@ -1293,7 +1368,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
 
     // 3. Receita Total: soma dos orçamentos entregues com as vendas diretas.
-    const receitaTotal = ajustesOrcamentos + vendasDiretas;
+    const receitaTotal = vendasOrcamentos + vendasDiretas;
     const despesas = financeiroMes
         .filter(f => f.tipo === 'SAIDA')
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
@@ -1304,7 +1379,7 @@ function atualizarDashboard(orcamentos, financeiro = []) {
         if (element) element.innerText = formatadorMoeda.format(valor);
     };
 
-    setDashboardValue('dash-ajustes', ajustesOrcamentos);
+    setDashboardValue('dash-ajustes', vendasOrcamentos);
     setDashboardValue('dash-vendas-diretas', vendasDiretas);
     setDashboardValue('dash-receitas', receitaTotal);
     setDashboardValue('dash-despesas', despesas);
@@ -1312,14 +1387,15 @@ function atualizarDashboard(orcamentos, financeiro = []) {
 
     // 4. A Receber (Orçamentos que ainda não foram entregues)
     const aReceber = orcamentos
-        .filter(o => ['Pendente', 'Aguardando Aprovação', 'Em Produção'].includes(o.status))
+        // "Pronto" ainda não foi entregue; portanto, continua sendo um orçamento a receber.
+        .filter(o => normalizarStatus(o.status) !== 'Entregue')
         .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
     setDashboardValue('dash-receber', aReceber);
 
-    // 5. Total Geral (Soma de todos os orçamentos entregues + vendas diretas na história)
-    const totalGeralOrcamentos = orcamentos
-        .filter(o => o.status === 'Entregue')
-        .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0);
+    // 5. Total Geral (Vendas registradas no financeiro)
+    const totalGeralOrcamentos = financeiro
+        .filter(f => f.tipo === 'ENTRADA' && f.categoria === 'Venda de Orçamento')
+        .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
     const totalGeralVendasDiretas = financeiro
         .filter(f => f.tipo === 'ENTRADA' && ['Venda Direta', 'Venda de Peça'].includes(f.categoria))
         .reduce((acc, f) => acc + (parseFloat(f.valor) || 0), 0);
